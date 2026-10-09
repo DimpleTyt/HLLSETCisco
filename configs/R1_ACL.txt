@@ -1,0 +1,79 @@
+! ===== R1 - stage 2: access policy (paste ONLY after stage 1 tests pass) =====
+! Inbound ACLs on each VLAN subinterface.
+! TCP replies are allowed with "established".
+enable
+configure terminal
+!
+ip access-list extended USERS-IN
+ remark DHCP to R1
+ permit udp any eq bootpc any eq bootps
+ remark ping own gateway
+ permit icmp 192.168.10.0 0.0.0.255 host 192.168.10.1 echo
+ remark ALL model traffic (login, ingest, query) goes only via DISPATCHER
+ permit tcp 192.168.10.0 0.0.0.255 host 192.168.20.20 eq 5000
+ permit icmp 192.168.10.0 0.0.0.255 host 192.168.20.20 echo
+ remark replies to admin ping
+ permit icmp 192.168.10.0 0.0.0.255 192.168.99.0 0.0.0.255 echo-reply
+ deny ip any any
+exit
+!
+ip access-list extended SERVICES-IN
+ remark DISPATCHER replies to users
+ permit tcp host 192.168.20.20 eq 5000 192.168.10.0 0.0.0.255 established
+ permit icmp host 192.168.20.20 192.168.10.0 0.0.0.255 echo-reply
+ remark DISPATCHER sends jobs to any swarm board
+ permit tcp host 192.168.20.20 192.168.30.0 0.0.0.255 eq 5100
+ permit icmp host 192.168.20.20 192.168.30.0 0.0.0.255 echo
+ remark gateway ping and replies to admin
+ permit icmp 192.168.20.0 0.0.0.255 host 192.168.20.1 echo
+ permit icmp 192.168.20.0 0.0.0.255 192.168.99.0 0.0.0.255 echo-reply
+ deny ip any any
+exit
+!
+ip access-list extended SWARM-IN
+ remark board replies to DISPATCHER
+ permit tcp 192.168.30.0 0.0.0.255 eq 5100 host 192.168.20.20 established
+ permit icmp 192.168.30.0 0.0.0.255 host 192.168.20.20 echo-reply
+ remark boards read/write the shared lattice
+ permit tcp 192.168.30.0 0.0.0.255 host 192.168.40.10 eq 5200
+ permit icmp 192.168.30.0 0.0.0.255 host 192.168.40.10 echo
+ remark gateway ping and replies to admin
+ permit icmp 192.168.30.0 0.0.0.255 host 192.168.30.1 echo
+ permit icmp 192.168.30.0 0.0.0.255 192.168.99.0 0.0.0.255 echo-reply
+ deny ip any any
+exit
+!
+ip access-list extended GRID-IN
+ remark GRID only answers the boards
+ permit tcp host 192.168.40.10 eq 5200 192.168.30.0 0.0.0.255 established
+ permit icmp host 192.168.40.10 192.168.30.0 0.0.0.255 echo-reply
+ remark gateway ping and replies to admin
+ permit icmp host 192.168.40.10 host 192.168.40.1 echo
+ permit icmp host 192.168.40.10 192.168.99.0 0.0.0.255 echo-reply
+ deny ip any any
+exit
+!
+ip access-list extended MGMT-IN
+ remark admin: ping and SSH anywhere
+ permit icmp 192.168.99.0 0.0.0.255 any
+ permit tcp 192.168.99.0 0.0.0.255 any eq 22
+ deny ip any any
+exit
+!
+interface GigabitEthernet0/0/0.10
+ ip access-group USERS-IN in
+exit
+interface GigabitEthernet0/0/0.20
+ ip access-group SERVICES-IN in
+exit
+interface GigabitEthernet0/0/0.30
+ ip access-group SWARM-IN in
+exit
+interface GigabitEthernet0/0/0.40
+ ip access-group GRID-IN in
+exit
+interface GigabitEthernet0/0/0.99
+ ip access-group MGMT-IN in
+exit
+end
+write memory

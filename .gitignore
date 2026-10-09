@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Packet Tracer temp/backup files
+*.pkt.bak
+*.pka.bak
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

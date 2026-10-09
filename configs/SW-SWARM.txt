@@ -1,0 +1,76 @@
+! ===== SW-SWARM (2960-24TT) =====
+enable
+configure terminal
+hostname SW-SWARM
+no ip domain-lookup
+service password-encryption
+enable secret Cisco123!
+banner motd #HLLSet lab - authorized access only#
+username admin privilege 15 secret Admin123!
+ip domain-name hllset.lab
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+line console 0
+ logging synchronous
+exit
+line vty 0 4
+ login local
+ transport input ssh
+exit
+!
+vlan 30
+ name SWARM
+vlan 40
+ name GRID
+vlan 99
+ name MGMT
+vlan 999
+ name NATIVE-UNUSED
+exit
+!
+interface GigabitEthernet0/1
+ description TRUNK to SW-CORE G0/2
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 30,40,99
+ switchport nonegotiate
+ no shutdown
+exit
+!
+! --- swarm boards FPGA1..FPGA5 ---
+interface range FastEthernet0/1 - 5
+ description FPGA board (swarm)
+ switchport mode access
+ switchport access vlan 30
+ switchport port-security
+ switchport port-security maximum 1
+ switchport port-security mac-address sticky
+ switchport port-security violation restrict
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ no shutdown
+exit
+!
+! --- GRID (shared lattice + hllsetLUT + user LUTs) ---
+interface FastEthernet0/10
+ description GRID
+ switchport mode access
+ switchport access vlan 40
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ no shutdown
+exit
+!
+interface range FastEthernet0/6 - 9 , FastEthernet0/11 - 24 , GigabitEthernet0/2
+ switchport mode access
+ switchport access vlan 999
+ shutdown
+exit
+!
+interface Vlan99
+ ip address 192.168.99.4 255.255.255.0
+ no shutdown
+exit
+ip default-gateway 192.168.99.1
+end
+write memory
