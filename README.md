@@ -93,3 +93,10 @@ python tests/verify.py scripts
 - CID = SHA-1 канонического списка позиций, а не сериализованного Roaring-битмапа.
 - Только униграммы; 3-граммы, TF-ранги и временная пирамида L0–L6 — следующие итерации.
 - Токены без срока жизни, пароли в открытом виде; данные Grid живут в памяти SBC.
+
+## Источники
+
+- [hllset-next-v2](https://github.com/alexmy21/hllset-next-v2) — реализация HLLSet-алгебры (A. Mylnikov)
+- [hllset-fpga-simulator-v2](https://github.com/alexmy21/hllset-fpga-simulator-v2) — Rust-симулятор FPGA, эталон для хеша
+- A. Mylnikov, D. Kumar. *Emerging World Models: A Structural Framework for Self-Organizing World Representations*, 2026
+- A. Mylnikov, A. Mylnikov Jr., D. Kumar. *The EWM Lattice and Its Worlds*, 2026
