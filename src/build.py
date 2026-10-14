@@ -35,18 +35,19 @@ def write(name, role, libs, body):
 def main():
     os.makedirs(OUT, exist_ok=True)
     core = ["hll16.py", "net.py"]
-    write("GRID.py", "GRID", core + ["planes.py"], rd("role_grid.py"))
+    lattice = core + ["planes.py", "morph.py"]
+    write("GRID.py", "GRID", lattice, rd("role_grid.py"))
     write("DATA.py", "DATA", core, rd("role_data.py"))
-    write("DISPATCHER.py", "DISPATCHER", core, rd("role_dispatcher.py"))
+    write("DISPATCHER.py", "DISPATCHER", lattice, rd("role_dispatcher.py"))
     fpga = rd("role_fpga.py")
     for i in range(1, 6):
         body = fpga.replace('BOARD = "FPGA?"            # <-- set per board: FPGA1 .. FPGA5', 'BOARD = "FPGA%d"' % i)
-        write("FPGA%d.py" % i, "FPGA%d" % i, core + ["planes.py"], body)
+        write("FPGA%d.py" % i, "FPGA%d" % i, lattice, body)
     user = rd("role_user.py")
     for i in range(1, 4):
         body = (user.replace('USER = "user1"            # <-- user1 / user2 / user3', 'USER = "user%d"' % i)
                     .replace('PASSWORD = "pass1"        # <-- pass1 / pass2 / pass3', 'PASSWORD = "pass%d"' % i))
-        write("USER%d.py" % i, "USER%d" % i, core, body)
+        write("USER%d.py" % i, "USER%d" % i, core + ["card.py"], body)
     print("built:", ", ".join(sorted(os.listdir(OUT))))
 
 

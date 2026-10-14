@@ -11,8 +11,9 @@ import math
 # and bitwise ops are 32-bit. So every 64-bit value is 4 limbs of 16 bits,
 # little-endian: [bits 0-15, 16-31, 32-47, 48-63]. Bitwise ops only touch values < 2^16,
 # products of two limbs stay < 2^32 (exact in a double) and are split with % and //.
-# Bit-exact with hllset-core: h = murmur3_x64_128(utf8(token), seed as u32).low64,
-# reg = h & 0x3FF, tz = min(ctz(h >> 10), 31).
+# Bit-exact with hllset-contracts (ewm-state-machine):
+# h = murmur3_x64_128(bytes, seed as u32).low64, reg = h & 0x3FF, tz = min(ctz(h >> 10), 31),
+# bit = reg * 32 + tz.
 
 L16 = 65536
 C1 = [0x53d5, 0x1142, 0x7b91, 0x87c3]   # 0x87c37b91114253d5
@@ -127,7 +128,11 @@ def word(d, i, n):
 
 
 def murmur64(text, seed):
-    d = utf8(text)
+    return murmur64_bytes(utf8(text), seed)
+
+
+def murmur64_bytes(d, seed):
+    # d = list of byte values 0..255
     n = len(d)
     s32 = seed % 4294967296
     h1 = small(s32)
@@ -182,13 +187,24 @@ def ctz(x):
     return 64
 
 
-def position(text, seed):
-    h = murmur64(text, seed)
+def position_of(h):
+    # hllset-contracts::hash_to_position: reg = h & 1023, tz = min(ctz(h >> 10), 31)
+    # (h >> 10 == 0 gives ctz = 64 -> 31, the saturated convention of Rust)
     reg = h[0] & 0x3FF
     tz = ctz(shr(h, 10))
     if tz > 31:
         tz = 31
     return reg, tz
+
+
+def position(text, seed):
+    return position_of(murmur64(text, seed))
+
+
+def bit_of_bytes(d, seed):
+    # BitAddress::of_token_seeded(bytes, seed).bit() = reg * 32 + tz
+    reg, tz = position_of(murmur64_bytes(d, seed))
+    return reg * 32 + tz
 
 # ---------------- common: SHA-1, line protocol over PT tcp ----------------
 # Wire format: one message per line, fields separated by "|":  <rid>|<CMD>|<arg>|...
@@ -197,6 +213,9 @@ def position(text, seed):
 
 TICK = [0]          # main-loop tick counter (0.5 s per tick)
 TIMEOUT_TICKS = 30  # 15 s
+MAX_LINE = 65536    # longest accepted protocol line; longer input is dropped (DoS guard)
+NAME_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_"
+REF_CHARS = NAME_CHARS + ".+*-^@"
 
 
 def log(tag, text):
@@ -213,9 +232,23 @@ def clean(s):
     return out
 
 
+def valid(s, chars, maxlen):
+    if len(s) == 0 or len(s) > maxlen:
+        return False
+    for ch in s:
+        if ch not in chars:
+            return False
+    return True
+
+
 def tokenize(text):
+    # whitespace separates tokens; protocol delimiters and brackets are stripped
+    # (so a user token can never be "<PAD>", the boundary token of the ingest)
+    t0 = ""
+    for ch in text:
+        t0 = t0 + (" " if ch in "\t\r\n" else ch)
     toks = []
-    for raw in text.lower().split(" "):
+    for raw in t0.lower().split(" "):
         t = ""
         for ch in raw:
             if ch in ".!?\"'()[]{}<>|;,:~\n\r\t":
@@ -251,7 +284,12 @@ def _rotl(x, n):
 
 
 def sha1_hex(text):
-    d = utf8(text)
+    return sha1_bytes(utf8(text))
+
+
+def sha1_bytes(data):
+    # SHA-1 of a list of byte values -> 40 lowercase hex chars
+    d = list(data)
     n = len(d)
     d.append(0x80)
     while len(d) % 64 != 56:
@@ -326,10 +364,17 @@ class Line:
 
     def _recv(self, data):
         self.buf = self.buf + data
+        if len(self.buf) > MAX_LINE and "\n" not in self.buf:
+            log("NET", "line too long, dropped " + str(len(self.buf)) + " chars")
+            self.buf = ""
+            return
         while "\n" in self.buf:
             i = self.buf.index("\n")
             line = self.buf[:i]
             self.buf = self.buf[i + 1:]
+            if len(line) > MAX_LINE:
+                log("NET", "line too long, dropped")
+                continue
             if line != "":
                 try:
                     self.on_line(self, line.split("|"))
@@ -425,6 +470,11 @@ class Peer:
         for rid in self.pending:
             if TICK[0] - self.pending[rid][1] > TIMEOUT_TICKS:
                 dead.append(rid)
+        if len(dead) > 0 and self.ready:
+            # the peer stopped answering: forget the session, reconnect + HELLO again
+            log("NET", "lost " + self.name + ", reconnecting")
+            self.ready = False
+            self.tries = 20
         for rid in dead:
             cb = self.pending[rid][0]
             del self.pending[rid]
@@ -437,7 +487,11 @@ class Peer:
         rid = "r" + str(self.next_id[0])
         self.next_id[0] = self.next_id[0] + 1
         self.pending[rid] = [cb, TICK[0]]
-        self.conn.send([rid] + fields)
+        if not self.conn.send([rid] + fields):
+            del self.pending[rid]
+            self.ready = False
+            self.tries = 20
+            cb(["ERR", self.name + " send failed"])
 
 
 def run(tick_fn):
@@ -447,21 +501,27 @@ def run(tick_fn):
         sleep(0.5)
 
 # ================= DATA: identification (green) and access (orange) =================
-# Issues access tokens and keeps each user's world: hash configuration (murmur3, seed).
+# Issues access tokens. In ewm-state-machine there is ONE universe with fixed channel
+# seeds [0, 1, 2] (+3 for slide4): a user's world is the interpretation of the shared
+# lattice through the user's own token LUTs, not a private hash seed.
 PORT = 5001
+TOKEN_TTL = 3600          # ticks (30 min)
+MAX_FAILS = 5             # wrong passwords in a row -> lock
+LOCK_TICKS = 120          # 60 s
 
 USERS = {
-    "user1": {"pass": "pass1", "seed": 101},
-    "user2": {"pass": "pass2", "seed": 102},
-    "user3": {"pass": "pass3", "seed": 103},
+    "user1": {"pass": "pass1"},
+    "user2": {"pass": "pass2"},
+    "user3": {"pass": "pass3"},
 }
-TOKENS = {}   # token -> user
+TOKENS = {}   # token -> [user, issued tick]
+FAILS = {}    # user -> [count, locked until tick]
 
 
 def new_token():
     digits = "0123456789abcdef"
     s = ""
-    for i in range(16):
+    for i in range(32):
         s = s + digits[random.randint(0, 15)]
     return s
 
@@ -469,27 +529,40 @@ def new_token():
 def handle(conn, rid, cmd, a):
     if cmd == "AUTH":
         user, pw = a[0], a[1]
+        f = FAILS.get(user, [0, 0])
+        if f[1] > TICK[0]:
+            log("GREEN", "AUTH " + user + " -> LOCKED")
+            conn.send([rid, "DENY", "locked, try later"])
+            return
         u = USERS.get(user)
         if u is None or u["pass"] != pw:
+            f[0] = f[0] + 1
+            if f[0] >= MAX_FAILS:
+                f = [0, TICK[0] + LOCK_TICKS]
+            FAILS[user] = f
             log("GREEN", "AUTH " + user + " -> DENY")
             conn.send([rid, "DENY", "bad login"])
             return
+        FAILS[user] = [0, 0]
         tok = new_token()
-        TOKENS[tok] = user
-        log("ORANGE", "AUTH " + user + " -> token " + tok[:6] + "... world seed=" + str(u["seed"]))
+        TOKENS[tok] = [user, TICK[0]]
+        log("ORANGE", "AUTH " + user + " -> token " + tok[:6] + "...")
         conn.send([rid, "OK", tok, user])
     elif cmd == "CHECK":
         tok = a[0]
-        user = TOKENS.get(tok)
-        if user is None:
+        t = TOKENS.get(tok)
+        if t is not None and TICK[0] - t[1] > TOKEN_TTL:
+            del TOKENS[tok]
+            t = None
+        if t is None:
             log("GREEN", "CHECK " + tok[:6] + "... -> DENY")
             conn.send([rid, "DENY", "invalid token"])
             return
-        conn.send([rid, "OK", user, USERS[user]["seed"]])
+        conn.send([rid, "OK", t[0]])
     elif cmd == "LOGOUT":
         tok = a[0]
         if tok in TOKENS:
-            log("GREEN", "LOGOUT " + TOKENS[tok])
+            log("GREEN", "LOGOUT " + TOKENS[tok][0])
             del TOKENS[tok]
         conn.send([rid, "OK"])
     else:

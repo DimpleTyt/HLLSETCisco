@@ -11,8 +11,9 @@ import math
 # and bitwise ops are 32-bit. So every 64-bit value is 4 limbs of 16 bits,
 # little-endian: [bits 0-15, 16-31, 32-47, 48-63]. Bitwise ops only touch values < 2^16,
 # products of two limbs stay < 2^32 (exact in a double) and are split with % and //.
-# Bit-exact with hllset-core: h = murmur3_x64_128(utf8(token), seed as u32).low64,
-# reg = h & 0x3FF, tz = min(ctz(h >> 10), 31).
+# Bit-exact with hllset-contracts (ewm-state-machine):
+# h = murmur3_x64_128(bytes, seed as u32).low64, reg = h & 0x3FF, tz = min(ctz(h >> 10), 31),
+# bit = reg * 32 + tz.
 
 L16 = 65536
 C1 = [0x53d5, 0x1142, 0x7b91, 0x87c3]   # 0x87c37b91114253d5
@@ -127,7 +128,11 @@ def word(d, i, n):
 
 
 def murmur64(text, seed):
-    d = utf8(text)
+    return murmur64_bytes(utf8(text), seed)
+
+
+def murmur64_bytes(d, seed):
+    # d = list of byte values 0..255
     n = len(d)
     s32 = seed % 4294967296
     h1 = small(s32)
@@ -182,13 +187,24 @@ def ctz(x):
     return 64
 
 
-def position(text, seed):
-    h = murmur64(text, seed)
+def position_of(h):
+    # hllset-contracts::hash_to_position: reg = h & 1023, tz = min(ctz(h >> 10), 31)
+    # (h >> 10 == 0 gives ctz = 64 -> 31, the saturated convention of Rust)
     reg = h[0] & 0x3FF
     tz = ctz(shr(h, 10))
     if tz > 31:
         tz = 31
     return reg, tz
+
+
+def position(text, seed):
+    return position_of(murmur64(text, seed))
+
+
+def bit_of_bytes(d, seed):
+    # BitAddress::of_token_seeded(bytes, seed).bit() = reg * 32 + tz
+    reg, tz = position_of(murmur64_bytes(d, seed))
+    return reg * 32 + tz
 
 # ---------------- common: SHA-1, line protocol over PT tcp ----------------
 # Wire format: one message per line, fields separated by "|":  <rid>|<CMD>|<arg>|...
@@ -197,6 +213,9 @@ def position(text, seed):
 
 TICK = [0]          # main-loop tick counter (0.5 s per tick)
 TIMEOUT_TICKS = 30  # 15 s
+MAX_LINE = 65536    # longest accepted protocol line; longer input is dropped (DoS guard)
+NAME_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_"
+REF_CHARS = NAME_CHARS + ".+*-^@"
 
 
 def log(tag, text):
@@ -213,9 +232,23 @@ def clean(s):
     return out
 
 
+def valid(s, chars, maxlen):
+    if len(s) == 0 or len(s) > maxlen:
+        return False
+    for ch in s:
+        if ch not in chars:
+            return False
+    return True
+
+
 def tokenize(text):
+    # whitespace separates tokens; protocol delimiters and brackets are stripped
+    # (so a user token can never be "<PAD>", the boundary token of the ingest)
+    t0 = ""
+    for ch in text:
+        t0 = t0 + (" " if ch in "\t\r\n" else ch)
     toks = []
-    for raw in text.lower().split(" "):
+    for raw in t0.lower().split(" "):
         t = ""
         for ch in raw:
             if ch in ".!?\"'()[]{}<>|;,:~\n\r\t":
@@ -251,7 +284,12 @@ def _rotl(x, n):
 
 
 def sha1_hex(text):
-    d = utf8(text)
+    return sha1_bytes(utf8(text))
+
+
+def sha1_bytes(data):
+    # SHA-1 of a list of byte values -> 40 lowercase hex chars
+    d = list(data)
     n = len(d)
     d.append(0x80)
     while len(d) % 64 != 56:
@@ -326,10 +364,17 @@ class Line:
 
     def _recv(self, data):
         self.buf = self.buf + data
+        if len(self.buf) > MAX_LINE and "\n" not in self.buf:
+            log("NET", "line too long, dropped " + str(len(self.buf)) + " chars")
+            self.buf = ""
+            return
         while "\n" in self.buf:
             i = self.buf.index("\n")
             line = self.buf[:i]
             self.buf = self.buf[i + 1:]
+            if len(line) > MAX_LINE:
+                log("NET", "line too long, dropped")
+                continue
             if line != "":
                 try:
                     self.on_line(self, line.split("|"))
@@ -425,6 +470,11 @@ class Peer:
         for rid in self.pending:
             if TICK[0] - self.pending[rid][1] > TIMEOUT_TICKS:
                 dead.append(rid)
+        if len(dead) > 0 and self.ready:
+            # the peer stopped answering: forget the session, reconnect + HELLO again
+            log("NET", "lost " + self.name + ", reconnecting")
+            self.ready = False
+            self.tries = 20
         for rid in dead:
             cb = self.pending[rid][0]
             del self.pending[rid]
@@ -437,7 +487,11 @@ class Peer:
         rid = "r" + str(self.next_id[0])
         self.next_id[0] = self.next_id[0] + 1
         self.pending[rid] = [cb, TICK[0]]
-        self.conn.send([rid] + fields)
+        if not self.conn.send([rid] + fields):
+            del self.pending[rid]
+            self.ready = False
+            self.tries = 20
+            cb(["ERR", self.name + " send failed"])
 
 
 def run(tick_fn):
@@ -446,13 +500,44 @@ def run(tick_fn):
         tick_fn()
         sleep(0.5)
 
-# ================= USER client (host side): tokenizes, sends work, computes floats =================
+# ---------------- host side: Horvitz-Thompson cardinality (hllset-core::cardinality_ht) ----------------
+# Floats live on the host; the boards return only the integer counts c_s.
+
+def cardinality(counts):
+    n = 1024.0
+    m = 1024
+    last_non_sat = -1
+    last_f_hat = 0.0
+    for s in range(32):
+        c = counts[s]
+        if c > 0 and c < m:
+            # Rust breaks at the FIRST non-saturated position (the name says "last")
+            last_non_sat = s
+            last_f_hat = -n * math.log(1.0 - c / n)
+            break
+    total = 0.0
+    for s in range(32):
+        c = counts[s]
+        if c == 0:
+            continue
+        if c < m:
+            total = total + (-n * math.log(1.0 - c / n))
+        elif last_non_sat > s:
+            total = total + last_f_hat * math.pow(2.0, last_non_sat - s)
+        else:
+            total = total + n * math.log(n)
+    if total <= 0:
+        return 0
+    return int(math.floor(total + 0.5))      # f64::round (half away from zero), total >= 0
+
+# ================= USER client (host side): sends work, computes floats =================
 USER = "user1"
 PASSWORD = "pass1"
 DISP = Peer("DISPATCHER", "192.168.20.20", 5000)
 
 TEXT_A = "the quick brown fox jumps over the lazy dog"
 TEXT_B = "the quick red fox runs past the sleepy cat"
+TEXT_A2 = "the quick brown fox jumps over the sleepy cat"
 
 SCENARIOS = {
     # full walk through the model
@@ -462,48 +547,51 @@ SCENARIOS = {
         ["INGEST", "doc1", TEXT_A],
         ["INGEST", "doc2", TEXT_B],
         ["QUERY", "INFO", "doc1"],
+        ["QUERY", "HIST", "doc1"],
         ["QUERY", "UNION", "doc1", "doc2"],
         ["QUERY", "INTERSECT", "doc1", "doc2"],
         ["QUERY", "DRN", "doc1", "doc2"],
-        ["QUERY", "HIST", "doc1"],
+        ["QUERY", "LOOKUP", "doc1"],
         ["QUERY", "LOOKUP", "doc1*doc2"],
+        ["QUERY", "TOKENS", "doc2"],
+        ["INGEST", "doc1", TEXT_A2],
+        ["QUERY", "LOOKUP", "doc1@1"],
         ["QUERY", "LIST"],
+        ["QUERY", "HLUT"],
         ["QUERY", "STAT"],
     ],
-    # same text as user1/doc1, other world (seed): other bits, other CID
+    # one universe: the same text is the same node (same CID) for every user,
+    # but a user restores tokens only through the LUTs of the user's own ingests
     "user2": [
         ["LOGIN"],
-        ["INGEST", "doc1", TEXT_A],
-        ["QUERY", "INFO", "doc1"],
-        ["QUERY", "LOOKUP", "doc1"],
+        ["INGEST", "mine", TEXT_A],
+        ["QUERY", "INFO", "mine"],
+        ["QUERY", "LOOKUP", "mine"],
+        ["QUERY", "LOOKUP", "doc2"],
         ["QUERY", "STAT"],
     ],
-    # security checks: bad password, fake token, direct access to a board (ACL)
+    # security checks and the known ways to make the model answer wrong
     "user3": [
         ["LOGIN_BAD"],
         ["FAKE_TOKEN"],
         ["DIRECT", "192.168.30.11", "5100"],
         ["LOGIN"],
-        ["INGEST", "notes", "hllset worlds share one lattice"],
-        ["QUERY", "HIST", "notes"],
+        ["INGEST", "../user1/doc1", "path in a name"],
+        ["INGEST", "a+b", "operator in a name"],
+        ["QUERY", "LOOKUP", "h:0000"],
+        ["INGEST", "laugh3", "ha ha ha"],
+        ["INGEST", "laugh4", "ha ha ha ha"],
+        ["QUERY", "LOOKUP", "laugh4"],
+        ["INGEST", "fact", "fact"],
+        ["INGEST", "note", "note"],
+        ["QUERY", "INTERSECT", "fact", "note"],
+        ["QUERY", "LOOKUP", "fact*note"],
+        ["INGEST", "votes", "нет да да нет да да да нет"],
+        ["QUERY", "LOOKUP", "votes"],
     ],
 }
 
 STATE = {"step": 0, "wait": False, "token": "", "direct": None, "direct_ticks": 0}
-
-
-def cardinality(counts):
-    # Horvitz-Thompson estimate from the 32 integer counts c_s (float math stays on the host)
-    n = 1024.0
-    total = 0.0
-    for c in counts:
-        if c <= 0:
-            continue
-        if c >= 1024:
-            total = total + n * math.log(n)
-        else:
-            total = total + (-n * math.log(1.0 - c / n))
-    return int(total + 0.5)
 
 
 def show(step, r):
@@ -512,7 +600,7 @@ def show(step, r):
         counts = [int(x) for x in r[3].split(",")]
         log("USER", title + " -> c_s=" + r[3] + "  card~" + str(cardinality(counts)))
         return
-    log("USER", title + " -> " + " | ".join(r))
+    log("USER", title + " -> " + " | ".join([str(x) for x in r]))
 
 
 def finish(step, r):
@@ -536,7 +624,7 @@ def run_step(step):
             finish(step, r)
         DISP.call(["LOGIN", USER, pw], got)
     elif cmd == "FAKE_TOKEN":
-        DISP.call(["QUERY", "0000000000000000", "LIST"], lambda r: finish(step, r))
+        DISP.call(["QUERY", "0" * 32, "LIST"], lambda r: finish(step, r))
     elif cmd == "INGEST":
         DISP.call(["INGEST", STATE["token"], step[1], clean(step[2])], lambda r: finish(step, r))
     elif cmd == "QUERY":

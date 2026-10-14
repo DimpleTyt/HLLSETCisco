@@ -5,6 +5,9 @@
 
 TICK = [0]          # main-loop tick counter (0.5 s per tick)
 TIMEOUT_TICKS = 30  # 15 s
+MAX_LINE = 65536    # longest accepted protocol line; longer input is dropped (DoS guard)
+NAME_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_"
+REF_CHARS = NAME_CHARS + ".+*-^@"
 
 
 def log(tag, text):
@@ -21,9 +24,23 @@ def clean(s):
     return out
 
 
+def valid(s, chars, maxlen):
+    if len(s) == 0 or len(s) > maxlen:
+        return False
+    for ch in s:
+        if ch not in chars:
+            return False
+    return True
+
+
 def tokenize(text):
+    # whitespace separates tokens; protocol delimiters and brackets are stripped
+    # (so a user token can never be "<PAD>", the boundary token of the ingest)
+    t0 = ""
+    for ch in text:
+        t0 = t0 + (" " if ch in "\t\r\n" else ch)
     toks = []
-    for raw in text.lower().split(" "):
+    for raw in t0.lower().split(" "):
         t = ""
         for ch in raw:
             if ch in ".!?\"'()[]{}<>|;,:~\n\r\t":
@@ -59,7 +76,12 @@ def _rotl(x, n):
 
 
 def sha1_hex(text):
-    d = utf8(text)
+    return sha1_bytes(utf8(text))
+
+
+def sha1_bytes(data):
+    # SHA-1 of a list of byte values -> 40 lowercase hex chars
+    d = list(data)
     n = len(d)
     d.append(0x80)
     while len(d) % 64 != 56:
@@ -134,10 +156,17 @@ class Line:
 
     def _recv(self, data):
         self.buf = self.buf + data
+        if len(self.buf) > MAX_LINE and "\n" not in self.buf:
+            log("NET", "line too long, dropped " + str(len(self.buf)) + " chars")
+            self.buf = ""
+            return
         while "\n" in self.buf:
             i = self.buf.index("\n")
             line = self.buf[:i]
             self.buf = self.buf[i + 1:]
+            if len(line) > MAX_LINE:
+                log("NET", "line too long, dropped")
+                continue
             if line != "":
                 try:
                     self.on_line(self, line.split("|"))
@@ -233,6 +262,11 @@ class Peer:
         for rid in self.pending:
             if TICK[0] - self.pending[rid][1] > TIMEOUT_TICKS:
                 dead.append(rid)
+        if len(dead) > 0 and self.ready:
+            # the peer stopped answering: forget the session, reconnect + HELLO again
+            log("NET", "lost " + self.name + ", reconnecting")
+            self.ready = False
+            self.tries = 20
         for rid in dead:
             cb = self.pending[rid][0]
             del self.pending[rid]
@@ -245,7 +279,11 @@ class Peer:
         rid = "r" + str(self.next_id[0])
         self.next_id[0] = self.next_id[0] + 1
         self.pending[rid] = [cb, TICK[0]]
-        self.conn.send([rid] + fields)
+        if not self.conn.send([rid] + fields):
+            del self.pending[rid]
+            self.ready = False
+            self.tries = 20
+            cb(["ERR", self.name + " send failed"])
 
 
 def run(tick_fn):

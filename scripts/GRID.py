@@ -11,8 +11,9 @@ import math
 # and bitwise ops are 32-bit. So every 64-bit value is 4 limbs of 16 bits,
 # little-endian: [bits 0-15, 16-31, 32-47, 48-63]. Bitwise ops only touch values < 2^16,
 # products of two limbs stay < 2^32 (exact in a double) and are split with % and //.
-# Bit-exact with hllset-core: h = murmur3_x64_128(utf8(token), seed as u32).low64,
-# reg = h & 0x3FF, tz = min(ctz(h >> 10), 31).
+# Bit-exact with hllset-contracts (ewm-state-machine):
+# h = murmur3_x64_128(bytes, seed as u32).low64, reg = h & 0x3FF, tz = min(ctz(h >> 10), 31),
+# bit = reg * 32 + tz.
 
 L16 = 65536
 C1 = [0x53d5, 0x1142, 0x7b91, 0x87c3]   # 0x87c37b91114253d5
@@ -127,7 +128,11 @@ def word(d, i, n):
 
 
 def murmur64(text, seed):
-    d = utf8(text)
+    return murmur64_bytes(utf8(text), seed)
+
+
+def murmur64_bytes(d, seed):
+    # d = list of byte values 0..255
     n = len(d)
     s32 = seed % 4294967296
     h1 = small(s32)
@@ -182,13 +187,24 @@ def ctz(x):
     return 64
 
 
-def position(text, seed):
-    h = murmur64(text, seed)
+def position_of(h):
+    # hllset-contracts::hash_to_position: reg = h & 1023, tz = min(ctz(h >> 10), 31)
+    # (h >> 10 == 0 gives ctz = 64 -> 31, the saturated convention of Rust)
     reg = h[0] & 0x3FF
     tz = ctz(shr(h, 10))
     if tz > 31:
         tz = 31
     return reg, tz
+
+
+def position(text, seed):
+    return position_of(murmur64(text, seed))
+
+
+def bit_of_bytes(d, seed):
+    # BitAddress::of_token_seeded(bytes, seed).bit() = reg * 32 + tz
+    reg, tz = position_of(murmur64_bytes(d, seed))
+    return reg * 32 + tz
 
 # ---------------- common: SHA-1, line protocol over PT tcp ----------------
 # Wire format: one message per line, fields separated by "|":  <rid>|<CMD>|<arg>|...
@@ -197,6 +213,9 @@ def position(text, seed):
 
 TICK = [0]          # main-loop tick counter (0.5 s per tick)
 TIMEOUT_TICKS = 30  # 15 s
+MAX_LINE = 65536    # longest accepted protocol line; longer input is dropped (DoS guard)
+NAME_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_"
+REF_CHARS = NAME_CHARS + ".+*-^@"
 
 
 def log(tag, text):
@@ -213,9 +232,23 @@ def clean(s):
     return out
 
 
+def valid(s, chars, maxlen):
+    if len(s) == 0 or len(s) > maxlen:
+        return False
+    for ch in s:
+        if ch not in chars:
+            return False
+    return True
+
+
 def tokenize(text):
+    # whitespace separates tokens; protocol delimiters and brackets are stripped
+    # (so a user token can never be "<PAD>", the boundary token of the ingest)
+    t0 = ""
+    for ch in text:
+        t0 = t0 + (" " if ch in "\t\r\n" else ch)
     toks = []
-    for raw in text.lower().split(" "):
+    for raw in t0.lower().split(" "):
         t = ""
         for ch in raw:
             if ch in ".!?\"'()[]{}<>|;,:~\n\r\t":
@@ -251,7 +284,12 @@ def _rotl(x, n):
 
 
 def sha1_hex(text):
-    d = utf8(text)
+    return sha1_bytes(utf8(text))
+
+
+def sha1_bytes(data):
+    # SHA-1 of a list of byte values -> 40 lowercase hex chars
+    d = list(data)
     n = len(d)
     d.append(0x80)
     while len(d) % 64 != 56:
@@ -326,10 +364,17 @@ class Line:
 
     def _recv(self, data):
         self.buf = self.buf + data
+        if len(self.buf) > MAX_LINE and "\n" not in self.buf:
+            log("NET", "line too long, dropped " + str(len(self.buf)) + " chars")
+            self.buf = ""
+            return
         while "\n" in self.buf:
             i = self.buf.index("\n")
             line = self.buf[:i]
             self.buf = self.buf[i + 1:]
+            if len(line) > MAX_LINE:
+                log("NET", "line too long, dropped")
+                continue
             if line != "":
                 try:
                     self.on_line(self, line.split("|"))
@@ -425,6 +470,11 @@ class Peer:
         for rid in self.pending:
             if TICK[0] - self.pending[rid][1] > TIMEOUT_TICKS:
                 dead.append(rid)
+        if len(dead) > 0 and self.ready:
+            # the peer stopped answering: forget the session, reconnect + HELLO again
+            log("NET", "lost " + self.name + ", reconnecting")
+            self.ready = False
+            self.tries = 20
         for rid in dead:
             cb = self.pending[rid][0]
             del self.pending[rid]
@@ -437,7 +487,11 @@ class Peer:
         rid = "r" + str(self.next_id[0])
         self.next_id[0] = self.next_id[0] + 1
         self.pending[rid] = [cb, TICK[0]]
-        self.conn.send([rid] + fields)
+        if not self.conn.send([rid] + fields):
+            del self.pending[rid]
+            self.ready = False
+            self.tries = 20
+            cb(["ERR", self.name + " send failed"])
 
 
 def run(tick_fn):
@@ -446,15 +500,23 @@ def run(tick_fn):
         tick_fn()
         sleep(0.5)
 
-# ---------------- HLLSet plane as a set of bit positions ----------------
-# position = reg * 32 + tz  (0 .. 32767); plane = dict {position: 1}
+# ---------------- HLLSet plane (hllset-core::HLLSet) as a set of bit positions ----------------
+# bit = reg * 32 + tz  (0 .. 32767); plane = dict {bit: 1}
+# Content key = "h:" + sha1(Roaring serialization), exactly like HLLSet::content_key()
+# (roaring-rs 0.10, portable format without run containers).
+
+ARRAY_LIMIT = 4096
+
 
 def plane_from(s):
     p = {}
     if s == "" or s == "-":
         return p
     for x in s.split(","):
-        p[int(x)] = 1
+        b = int(x)
+        if b < 0 or b >= 32768:
+            raise Exception("bit out of range " + x)
+        p[b] = 1
     return p
 
 
@@ -495,26 +557,311 @@ def p_xor(a, b):
 
 
 def p_hist(p):
-    # c_s = number of registers with bit s set (input for Horvitz-Thompson cardinality on host)
+    # HLLSet::bit_counts(): c_s = number of registers with bit s set (HT input, host side)
     c = [0] * 32
     for k in p:
         c[k % 32] = c[k % 32] + 1
     return c
 
 
+def roaring_bytes(p):
+    # RoaringBitmap::serialize_into: cookie 12346, container count, (key, card-1),
+    # offsets, then the container. All bits < 32768 -> at most one container (key 0).
+    keys = sorted(p.keys())
+    n = len(keys)
+    out = [0x3A, 0x30, 0, 0]
+    if n == 0:
+        return out + [0, 0, 0, 0]
+    out = out + [1, 0, 0, 0, 0, 0, (n - 1) % 256, (n - 1) // 256, 16, 0, 0, 0]
+    if n <= ARRAY_LIMIT:
+        for k in keys:
+            out.append(k % 256)
+            out.append(k // 256)
+        return out
+    bm = [0] * 8192
+    for k in keys:
+        bm[k // 8] = bm[k // 8] | (1 << (k % 8))
+    return out + bm
+
+
 def cid_of(p):
-    # content key of a node: SHA-1 over the canonical position list
-    return "h:" + sha1_hex(plane_str(p))
+    # HLLSet::content_key(): "h:" + sha1(roaring bytes)
+    return "h:" + sha1_bytes(roaring_bytes(p))
 
-# ================= GRID: shared HLLSet lattice + hllsetLUT + per-world token LUTs =================
-# One lattice for all users (one universe). Nodes are content-addressed (CID = h:<sha1>).
-# A user's world is read only through that user's LUT (virtual isolation by interpretation).
+
+def hexkey(t):
+    # bytewise (UTF-8) sort key: Rust orders tokens as Vec<u8>; JS compares UTF-16 units
+    digits = "0123456789abcdef"
+    s = ""
+    for b in utf8(t):
+        s = s + digits[b >> 4] + digits[b & 15]
+    return s
+
+
+def sort_bytes(tokens):
+    m = {}
+    for t in tokens:
+        m[hexkey(t)] = t
+    return [m[k] for k in sorted(m.keys())]
+
+
+# ---- wire encodings for LUT fibers and TF ----
+def lut_str(lut):
+    # lut = {bit: {token: 1}} -> "bit:tok;bit:tok"
+    out = []
+    for b in sorted(lut.keys()):
+        for t in sort_bytes(lut[b].keys()):
+            out.append(str(b) + ":" + t)
+    return ";".join(out) if len(out) > 0 else "-"
+
+
+def lut_from(s, into):
+    if s == "" or s == "-":
+        return into
+    for e in s.split(";"):
+        i = e.index(":")
+        b = int(e[:i])
+        fib = into.get(b)
+        if fib is None:
+            fib = {}
+            into[b] = fib
+        fib[e[i + 1:]] = 1
+    return into
+
+
+def tf_str(tf):
+    out = []
+    for t in sort_bytes(tf.keys()):
+        out.append(t + ":" + str(tf[t]))
+    return ";".join(out) if len(out) > 0 else "-"
+
+
+def tf_from(s):
+    tf = {}
+    if s == "" or s == "-":
+        return tf
+    for e in s.split(";"):
+        i = e.index(":")
+        tf[e[:i]] = int(e[i + 1:])
+    return tf
+
+# ---------------- hllset-morphisms::api — default ingest / materialize ----------------
+# Port of ewm-state-machine/crates/hllset-morphisms/src/api.rs:
+#   padded = [PAD] + tokens + [PAD, PAD]
+#   channel 0 (G1): 1-grams, seed 0     channel 1 (G2): 2-grams, seed 1
+#   channel 2 (G3): 3-grams, seed 2     slide4 (S4_1d): 4-gram windows, seed 3, NO LUT
+#   n-gram bytes = utf8 parts joined with a NUL byte.
+#   LUT fiber of a window's bit holds the window's FIRST token, only for real start
+#   positions 1..n (pad-leading windows only set the atom).
+#   key = h:sha1(roaring(G1 | G2 | G3)); slide4 is not part of the projection.
+# The swarm splits the window START positions [0, L) into ranges; every board ingests
+# its range, the GRID unions the parts. Union is order-free, so the result is the same
+# as one Rust ingest() call over the whole text.
+
+PAD = "<PAD>"
+CHANNEL_SEEDS = [0, 1, 2]
+SLIDE_SEED = 3
+CHANNEL_NAMES = ["G1", "G2", "G3"]
+WALK_BUDGET = 20000     # node budget of the ordered walk (same as Rust)
+BITCACHE = {}
+
+
+def window_bit(parts, seed):
+    key = str(seed) + " " + " ".join(parts)      # tokens never contain spaces
+    b = BITCACHE.get(key)
+    if b is not None:
+        return b
+    d = []
+    for i in range(len(parts)):
+        if i > 0:
+            d.append(0)
+        d = d + utf8(parts[i])
+    b = bit_of_bytes(d, seed)
+    if len(BITCACHE) > 20000:
+        for k in list(BITCACHE.keys()):
+            del BITCACHE[k]
+    BITCACHE[key] = b
+    return b
+
+
+def ingest_part(toks, a, b, nreal):
+    # toks = padded[a : min(b + 3, L)], window starts s in [a, b), L = nreal + 3
+    L = nreal + 3
+    g = [{}, {}, {}]
+    s4 = {}
+    luts = [{}, {}, {}]
+    tf = {}
+    for s in range(a, b):
+        for n in range(1, 5):
+            if s + n > L:
+                continue
+            w = toks[s - a: s - a + n]
+            if n == 4:
+                s4[window_bit(w, SLIDE_SEED)] = 1
+                continue
+            bit = window_bit(w, CHANNEL_SEEDS[n - 1])
+            g[n - 1][bit] = 1
+            if s >= 1 and s <= nreal:
+                fib = luts[n - 1].get(bit)
+                if fib is None:
+                    fib = {}
+                    luts[n - 1][bit] = fib
+                fib[w[0]] = 1
+        if s >= 1 and s <= nreal:
+            t = toks[s - a]
+            tf[t] = tf.get(t, 0) + 1
+    return {"g": g, "s4": s4, "luts": luts, "tf": tf, "n": nreal}
+
+
+def ingest_all(tokens):
+    # the single-machine reference: one part covering every window
+    padded = [PAD] + tokens + [PAD, PAD]
+    return ingest_part(padded, 0, len(padded), len(tokens))
+
+
+def seal(rec):
+    # projection, keys and the hllsetLUT entries of a finished ingest
+    proj = p_union(p_union(rec["g"][0], rec["g"][1]), rec["g"][2])
+    rec["proj"] = proj
+    rec["key"] = cid_of(proj)
+    rec["keys"] = [cid_of(rec["g"][i]) for i in range(3)]
+    return rec
+
+
+def unordered_tokens(rec):
+    # materialize_no_order: LUT-first over the three (sketch, LUT) pairs, keep every candidate
+    out = {}
+    for ch in range(3):
+        for bit in rec["g"][ch]:
+            fib = rec["luts"][ch].get(bit)
+            if fib is not None:
+                for t in fib:
+                    out[t] = 1
+    return sort_bytes(out.keys())
+
+
+def _has(rec, ch, parts):
+    return window_bit(parts, CHANNEL_SEEDS[ch]) in rec["g"][ch]
+
+
+def _has4(rec, parts):
+    return window_bit(parts, SLIDE_SEED) in rec["s4"]
+
+
+def _edge_ok(rec, path, prev, cur, c):
+    # the joint 2-/3-/4-gram edge check of walk() / beam_search()
+    if not (_has(rec, 1, [cur, c]) and _has(rec, 2, [prev, cur, c])):
+        return False
+    if len(path) < 2:
+        return True
+    pp = PAD if len(path) == 2 else path[len(path) - 3]
+    return _has4(rec, [pp, prev, cur, c])
+
+
+def _rank(cands, tf):
+    # TF descending, then bytewise ascending (Rust: b.tf.cmp(a.tf).then(a.cmp(b)))
+    m = {}
+    for t in cands:
+        k = str(10000000 - tf.get(t, 0)) + "/" + hexkey(t)
+        m[k] = t
+    return [m[k] for k in sorted(m.keys())]
+
+
+def materialize_ordered(rec):
+    # api::materialize (Order::Ordered, beam 1): count-constrained greedy De Bruijn walk
+    # with backtracking, anchored at the start pad. Iterative (no deep recursion on PT).
+    tokens = unordered_tokens(rec)
+    n = rec["n"]
+    tf = rec["tf"]
+    if len(tokens) == 0 or n == 0:
+        return [], "empty"
+    remaining = {}
+    for t in tokens:
+        if tf.get(t, 0) > 0:
+            remaining[t] = tf[t]
+    starts = _rank([t for t in tokens if remaining.get(t, 0) > 0 and _has(rec, 1, [PAD, t])], tf)
+    budget = [WALK_BUDGET]
+    for start in starts:
+        if n == 1:
+            return [start], "ordered"
+        path = [start]
+        rem = {}
+        for t in remaining:
+            rem[t] = remaining[t]
+        rem[start] = rem[start] - 1
+        if _walk(rec, tokens, path, rem, budget):
+            return path, "ordered"
+        if budget[0] == 0:
+            break
+    return tokens, "fallback-set"
+
+
+def _enter(rec, tokens, path, rem, budget, prev, cur):
+    # one call of Rust walk(): True / False, or a list of successors to try
+    if budget[0] == 0:
+        return False
+    budget[0] = budget[0] - 1
+    if len(path) == rec["n"]:
+        return _edge_ok(rec, path, prev, cur, PAD)
+    nexts = [c for c in tokens if rem.get(c, 0) > 0 and _edge_ok(rec, path, prev, cur, c)]
+    return _rank(nexts, rec["tf"])
+
+
+def _walk(rec, tokens, path, rem, budget):
+    first = _enter(rec, tokens, path, rem, budget, PAD, path[0])
+    if first is True or first is False:
+        return first
+    stack = [[PAD, path[0], first, 0]]          # frame = [prev, cur, nexts, next index]
+    while len(stack) > 0:
+        fr = stack[len(stack) - 1]
+        if fr[3] >= len(fr[2]):
+            stack.pop()                          # frame exhausted -> parent undoes its step
+            if len(stack) == 0:
+                return False
+            last = path.pop()
+            rem[last] = rem[last] + 1
+            continue
+        nx = fr[2][fr[3]]
+        fr[3] = fr[3] + 1
+        rem[nx] = rem[nx] - 1
+        path.append(nx)
+        r = _enter(rec, tokens, path, rem, budget, fr[1], nx)
+        if r is True:
+            return True
+        if r is False:
+            path.pop()
+            rem[nx] = rem[nx] + 1
+            continue
+        stack.append([fr[1], nx, r, 0])
+    return False
+
+
+# ---- record wire format: g1|g2|g3|s4|lut1|lut2|lut3|tf ----
+def rec_fields(rec):
+    return [plane_str(rec["g"][0]), plane_str(rec["g"][1]), plane_str(rec["g"][2]), plane_str(rec["s4"]),
+            lut_str(rec["luts"][0]), lut_str(rec["luts"][1]), lut_str(rec["luts"][2]), tf_str(rec["tf"])]
+
+
+def rec_from(f, n):
+    return {"g": [plane_from(f[0]), plane_from(f[1]), plane_from(f[2])], "s4": plane_from(f[3]),
+            "luts": [lut_from(f[4], {}), lut_from(f[5], {}), lut_from(f[6], {})], "tf": tf_from(f[7]), "n": n}
+
+# ================= GRID: one lattice for all users + hllsetLUT + token LUTs =================
+# One universe (ewm-state-machine): every HLLSet is a node of the same Boolean lattice,
+# content-addressed by h:sha1(roaring). Ingest parts from the swarm are unioned per job;
+# SEAL registers the result (existence is registration). A user reads nodes only through
+# the token LUTs of the user's own ingests (interpretation), never through other users'.
 PORT = 5200
+JOB_TTL = 240            # ticks (2 min): unfinished swarm jobs are dropped after that
 
-NODES = {}      # hllsetLUT: cid -> plane                 (registration = existence)
-NAMES = {}      # (user, name) -> cid                     (user's handle on a node)
-LUT = {}        # user -> {position: {token: tf}}         (world interpretation, TF counts)
-SYSTEM = {}     # H_system = union of everything ever registered (monotone)
+NODES = {}      # content key -> plane                       (registration = existence)
+HLUT = {}       # "name\tkey" -> TH   (hllset-morphisms::HllsetLut: (name, key) -> touch count)
+NAMES = {}      # "user/name" -> key                          (user's handle on a node)
+RECS = {}       # "user/name" -> ingest record (G1-G3, slide4, LUTs, TF, n)
+VERS = {}       # "user/name" -> number of versions sealed under this name
+ULUT = {}       # user -> [lut G1, lut G2, lut G3]  join of the user's ingest LUTs
+JOBS = {}       # "user/job" -> {"parts": {i: fields}, "tick": t}
+SYSTEM = {}     # H_system = union of every registered node (monotone)
 
 
 def register(p):
@@ -526,6 +873,12 @@ def register(p):
     return cid
 
 
+def hlut_touch(name, key):
+    # register_named + touch_named
+    k = name + "\t" + key
+    HLUT[k] = HLUT.get(k, 0) + 1
+
+
 def resolve(user, ref):
     if ref.startswith("h:"):
         return NODES.get(ref)
@@ -535,30 +888,97 @@ def resolve(user, ref):
     return NODES[cid]
 
 
-def handle(conn, rid, cmd, a):
-    if cmd == "MERGE":
-        # MERGE|user|name|positions|pos:token;pos:token
-        user, name, pos, lut = a[0], a[1], a[2], a[3]
-        old = resolve(user, name)
-        new = plane_from(pos)
-        p = p_union(old if old is not None else {}, new)     # monotone join
-        cid = register(p)
-        NAMES[user + "/" + name] = cid
-        w = LUT.get(user)
-        if w is None:
-            w = {}
-            LUT[user] = w
-        if lut != "-" and lut != "":
-            for e in lut.split(";"):
-                kv = e.split(":")
-                k = int(kv[0])
-                fib = w.get(k)
+def merge(conn, rid, a):
+    # MERGE|user|job|part|g1|g2|g3|s4|lut1|lut2|lut3|tf   (idempotent per part: a retry overwrites)
+    user, job, part = a[0], a[1], int(a[2])
+    if len(a) < 11:
+        conn.send([rid, "ERR", "MERGE needs 11 fields"])
+        return
+    rec_from(a[3:11], 0)                 # validate before storing
+    jk = user + "/" + job
+    j = JOBS.get(jk)
+    if j is None:
+        j = {"parts": {}, "tick": TICK[0]}
+        JOBS[jk] = j
+    j["parts"][part] = a[3:11]
+    j["tick"] = TICK[0]
+    conn.send([rid, "OK", part, len(j["parts"])])
+
+
+def seal_job(conn, rid, a):
+    # SEAL|user|job|name|n|parts -> union of all parts = one Rust ingest() of the text
+    user, job, name, n, nparts = a[0], a[1], a[2], int(a[3]), int(a[4])
+    jk = user + "/" + job
+    j = JOBS.get(jk)
+    if j is None:
+        conn.send([rid, "ERR", "no such job"])
+        return
+    for i in range(nparts):
+        if i not in j["parts"]:
+            conn.send([rid, "ERR", "part " + str(i) + " missing"])
+            return
+    rec = {"g": [{}, {}, {}], "s4": {}, "luts": [{}, {}, {}], "tf": {}, "n": n}
+    for i in range(nparts):
+        p = rec_from(j["parts"][i], n)
+        for ch in range(3):
+            for b in p["g"][ch]:
+                rec["g"][ch][b] = 1
+            for b in p["luts"][ch]:
+                fib = rec["luts"][ch].get(b)
                 if fib is None:
                     fib = {}
-                    w[k] = fib
-                fib[kv[1]] = fib.get(kv[1], 0) + 1
-        log("BLUE", "MERGE " + user + "/" + name + " +" + str(len(new)) + " bits -> " + cid[:14] + " pop=" + str(len(p)))
-        conn.send([rid, "OK", cid, len(p)])
+                    rec["luts"][ch][b] = fib
+                for t in p["luts"][ch][b]:
+                    fib[t] = 1
+        for b in p["s4"]:
+            rec["s4"][b] = 1
+        for t in p["tf"]:
+            rec["tf"][t] = rec["tf"].get(t, 0) + p["tf"][t]
+    total = 0
+    for t in rec["tf"]:
+        total = total + rec["tf"][t]
+    if total != n:
+        conn.send([rid, "ERR", "token count mismatch " + str(total) + "/" + str(n)])
+        return
+    del JOBS[jk]
+    seal(rec)
+    key = register(rec["proj"])
+    for ch in range(3):
+        register(rec["g"][ch])
+        hlut_touch(CHANNEL_NAMES[ch], rec["keys"][ch])
+    nk = user + "/" + name
+    prev = "-"
+    old = RECS.get(nk)
+    if old is not None:
+        # named HLLSets are immutable: the old version stays registered as name@v,
+        # the new one takes the name. H(t) = (S(t), H(t-1), D, R, N)
+        v = VERS.get(nk, 1)
+        RECS[nk + "@" + str(v)] = old
+        NAMES[nk + "@" + str(v)] = old["key"]
+        VERS[nk] = v + 1
+        h0 = old["proj"]
+        s1 = rec["proj"]
+        prev = (name + "@" + str(v) + " " + old["key"][:14] + " D=" + str(len(p_diff(h0, s1))) +
+                " R=" + str(len(p_inter(h0, s1))) + " N=" + str(len(p_diff(s1, h0))))
+    else:
+        VERS[nk] = 1
+    RECS[nk] = rec
+    NAMES[nk] = key
+    w = ULUT.get(user)
+    if w is None:
+        w = [{}, {}, {}]
+        ULUT[user] = w
+    for ch in range(3):
+        lut_from(lut_str(rec["luts"][ch]), w[ch])
+    log("BLUE", "SEAL " + nk + " parts=" + str(nparts) + " -> " + key[:14] + " pop=" + str(len(rec["proj"])))
+    conn.send([rid, "OK", key, len(rec["proj"]), ",".join([k[:14] for k in rec["keys"]]), prev])
+
+
+def handle(conn, rid, cmd, a):
+    if cmd == "MERGE":
+        merge(conn, rid, a)
+    elif cmd == "SEAL":
+        seal_job(conn, rid, a)
     elif cmd == "GET":
         user, ref = a[0], a[1]
         p = resolve(user, ref)
@@ -566,35 +986,76 @@ def handle(conn, rid, cmd, a):
             conn.send([rid, "ERR", "no such set " + ref])
             return
         conn.send([rid, "OK", cid_of(p), plane_str(p)])
+    elif cmd == "REC":
+        # the full ingest record (for the ordered materialize on a board)
+        user, ref = a[0], a[1]
+        rec = RECS.get(user + "/" + ref)
+        if rec is None:
+            conn.send([rid, "NOREC", ref])
+            return
+        conn.send([rid, "OK", rec["key"], rec["n"]] + rec_fields(rec))
     elif cmd == "PUT":
         # register a computed node under a user's name (existence is registration)
         user, name, pos = a[0], a[1], a[2]
+        if (user + "/" + name) in RECS:
+            conn.send([rid, "ERR", "name belongs to an ingest " + name])
+            return
         p = plane_from(pos)
         cid = register(p)
         NAMES[user + "/" + name] = cid
         log("BLUE", "PUT " + user + "/" + name + " -> " + cid[:14] + " pop=" + str(len(p)))
         conn.send([rid, "OK", cid, len(p)])
     elif cmd == "LOOKUP":
-        # materialize: read active bits through THIS user's LUT only
+        # materialize a computed node: LUT-first over THIS user's LUTs only,
+        # every candidate of an active bit is kept (probabilistic restoration)
         user, pos = a[0], a[1]
-        w = LUT.get(user, {})
+        w = ULUT.get(user, [{}, {}, {}])
         out = {}
         for k in plane_from(pos):
-            fib = w.get(k)
-            if fib is not None:
-                for t in fib:
-                    out[t] = 1
-        toks = sorted(out.keys())
+            for ch in range(3):
+                fib = w[ch].get(k)
+                if fib is not None:
+                    for t in fib:
+                        out[t] = 1
+        toks = sort_bytes(out.keys())
         conn.send([rid, "OK", len(toks), " ".join(toks) if len(toks) > 0 else "-"])
     elif cmd == "LIST":
         user = a[0]
         names = []
         for key in NAMES:
             if key.startswith(user + "/"):
-                names.append(key[len(user) + 1:] + "=" + NAMES[key][:14])
+                mark = "*" if key in RECS else ""
+                names.append(key[len(user) + 1:] + mark + "=" + NAMES[key][:14])
         conn.send([rid, "OK", len(names), " ".join(sorted(names)) if len(names) > 0 else "-"])
     elif cmd == "STAT":
-        conn.send([rid, "OK", "nodes=" + str(len(NODES)), "system_pop=" + str(len(SYSTEM)), "worlds=" + str(len(LUT))])
+        # per-user view only: global counters would leak other users' activity
+        user = a[0]
+        nn = 0
+        nr = 0
+        for key in NAMES:
+            if key.startswith(user + "/"):
+                nn = nn + 1
+                if key in RECS:
+                    nr = nr + 1
+        w = ULUT.get(user, [{}, {}, {}])
+        conn.send([rid, "OK", "names=" + str(nn), "ingests=" + str(nr),
+                   "lut_bits=" + str(len(w[0]) + len(w[1]) + len(w[2]))])
+    elif cmd == "HLUT":
+        # hllsetLUT ranked (TH desc, name, key) restricted to the user's own channel keys
+        user = a[0]
+        mine = {}
+        for key in RECS:
+            if key.startswith(user + "/"):
+                for ch in range(3):
+                    mine[CHANNEL_NAMES[ch] + "\t" + RECS[key]["keys"][ch]] = 1
+        rows = []
+        for k in mine:
+            rows.append(str(10000000 - HLUT.get(k, 0)) + "\t" + k)
+        out = []
+        for r in sorted(rows):
+            f = r.split("\t")
+            out.append(f[1] + ":" + f[2][:14] + ":" + str(10000000 - int(f[0])))
+        conn.send([rid, "OK", len(out), " ".join(out) if len(out) > 0 else "-"])
     else:
         conn.send([rid, "ERR", "unknown " + cmd])
 
@@ -603,8 +1064,16 @@ SERVER = Server("GRID", PORT, handle)
 
 
 def tick():
+    old = []
+    for jk in JOBS:
+        if TICK[0] - JOBS[jk]["tick"] > JOB_TTL:
+            old.append(jk)
+    for jk in old:
+        log("GRID", "drop unfinished job " + jk)
+        del JOBS[jk]
     if TICK[0] % 120 == 0:
-        log("GRID", "nodes=" + str(len(NODES)) + " system_pop=" + str(len(SYSTEM)) + " worlds=" + str(len(LUT)))
+        log("GRID", "nodes=" + str(len(NODES)) + " system_pop=" + str(len(SYSTEM)) + " worlds=" + str(len(ULUT)) +
+            " hllsetLUT=" + str(len(HLUT)) + " jobs=" + str(len(JOBS)))
 
 
 def main():

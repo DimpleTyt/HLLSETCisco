@@ -11,8 +11,9 @@ import math
 # and bitwise ops are 32-bit. So every 64-bit value is 4 limbs of 16 bits,
 # little-endian: [bits 0-15, 16-31, 32-47, 48-63]. Bitwise ops only touch values < 2^16,
 # products of two limbs stay < 2^32 (exact in a double) and are split with % and //.
-# Bit-exact with hllset-core: h = murmur3_x64_128(utf8(token), seed as u32).low64,
-# reg = h & 0x3FF, tz = min(ctz(h >> 10), 31).
+# Bit-exact with hllset-contracts (ewm-state-machine):
+# h = murmur3_x64_128(bytes, seed as u32).low64, reg = h & 0x3FF, tz = min(ctz(h >> 10), 31),
+# bit = reg * 32 + tz.
 
 L16 = 65536
 C1 = [0x53d5, 0x1142, 0x7b91, 0x87c3]   # 0x87c37b91114253d5
@@ -127,7 +128,11 @@ def word(d, i, n):
 
 
 def murmur64(text, seed):
-    d = utf8(text)
+    return murmur64_bytes(utf8(text), seed)
+
+
+def murmur64_bytes(d, seed):
+    # d = list of byte values 0..255
     n = len(d)
     s32 = seed % 4294967296
     h1 = small(s32)
@@ -182,13 +187,24 @@ def ctz(x):
     return 64
 
 
-def position(text, seed):
-    h = murmur64(text, seed)
+def position_of(h):
+    # hllset-contracts::hash_to_position: reg = h & 1023, tz = min(ctz(h >> 10), 31)
+    # (h >> 10 == 0 gives ctz = 64 -> 31, the saturated convention of Rust)
     reg = h[0] & 0x3FF
     tz = ctz(shr(h, 10))
     if tz > 31:
         tz = 31
     return reg, tz
+
+
+def position(text, seed):
+    return position_of(murmur64(text, seed))
+
+
+def bit_of_bytes(d, seed):
+    # BitAddress::of_token_seeded(bytes, seed).bit() = reg * 32 + tz
+    reg, tz = position_of(murmur64_bytes(d, seed))
+    return reg * 32 + tz
 
 # ---------------- common: SHA-1, line protocol over PT tcp ----------------
 # Wire format: one message per line, fields separated by "|":  <rid>|<CMD>|<arg>|...
@@ -197,6 +213,9 @@ def position(text, seed):
 
 TICK = [0]          # main-loop tick counter (0.5 s per tick)
 TIMEOUT_TICKS = 30  # 15 s
+MAX_LINE = 65536    # longest accepted protocol line; longer input is dropped (DoS guard)
+NAME_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_"
+REF_CHARS = NAME_CHARS + ".+*-^@"
 
 
 def log(tag, text):
@@ -213,9 +232,23 @@ def clean(s):
     return out
 
 
+def valid(s, chars, maxlen):
+    if len(s) == 0 or len(s) > maxlen:
+        return False
+    for ch in s:
+        if ch not in chars:
+            return False
+    return True
+
+
 def tokenize(text):
+    # whitespace separates tokens; protocol delimiters and brackets are stripped
+    # (so a user token can never be "<PAD>", the boundary token of the ingest)
+    t0 = ""
+    for ch in text:
+        t0 = t0 + (" " if ch in "\t\r\n" else ch)
     toks = []
-    for raw in text.lower().split(" "):
+    for raw in t0.lower().split(" "):
         t = ""
         for ch in raw:
             if ch in ".!?\"'()[]{}<>|;,:~\n\r\t":
@@ -251,7 +284,12 @@ def _rotl(x, n):
 
 
 def sha1_hex(text):
-    d = utf8(text)
+    return sha1_bytes(utf8(text))
+
+
+def sha1_bytes(data):
+    # SHA-1 of a list of byte values -> 40 lowercase hex chars
+    d = list(data)
     n = len(d)
     d.append(0x80)
     while len(d) % 64 != 56:
@@ -326,10 +364,17 @@ class Line:
 
     def _recv(self, data):
         self.buf = self.buf + data
+        if len(self.buf) > MAX_LINE and "\n" not in self.buf:
+            log("NET", "line too long, dropped " + str(len(self.buf)) + " chars")
+            self.buf = ""
+            return
         while "\n" in self.buf:
             i = self.buf.index("\n")
             line = self.buf[:i]
             self.buf = self.buf[i + 1:]
+            if len(line) > MAX_LINE:
+                log("NET", "line too long, dropped")
+                continue
             if line != "":
                 try:
                     self.on_line(self, line.split("|"))
@@ -425,6 +470,11 @@ class Peer:
         for rid in self.pending:
             if TICK[0] - self.pending[rid][1] > TIMEOUT_TICKS:
                 dead.append(rid)
+        if len(dead) > 0 and self.ready:
+            # the peer stopped answering: forget the session, reconnect + HELLO again
+            log("NET", "lost " + self.name + ", reconnecting")
+            self.ready = False
+            self.tries = 20
         for rid in dead:
             cb = self.pending[rid][0]
             del self.pending[rid]
@@ -437,7 +487,11 @@ class Peer:
         rid = "r" + str(self.next_id[0])
         self.next_id[0] = self.next_id[0] + 1
         self.pending[rid] = [cb, TICK[0]]
-        self.conn.send([rid] + fields)
+        if not self.conn.send([rid] + fields):
+            del self.pending[rid]
+            self.ready = False
+            self.tries = 20
+            cb(["ERR", self.name + " send failed"])
 
 
 def run(tick_fn):
@@ -446,15 +500,23 @@ def run(tick_fn):
         tick_fn()
         sleep(0.5)
 
-# ---------------- HLLSet plane as a set of bit positions ----------------
-# position = reg * 32 + tz  (0 .. 32767); plane = dict {position: 1}
+# ---------------- HLLSet plane (hllset-core::HLLSet) as a set of bit positions ----------------
+# bit = reg * 32 + tz  (0 .. 32767); plane = dict {bit: 1}
+# Content key = "h:" + sha1(Roaring serialization), exactly like HLLSet::content_key()
+# (roaring-rs 0.10, portable format without run containers).
+
+ARRAY_LIMIT = 4096
+
 
 def plane_from(s):
     p = {}
     if s == "" or s == "-":
         return p
     for x in s.split(","):
-        p[int(x)] = 1
+        b = int(x)
+        if b < 0 or b >= 32768:
+            raise Exception("bit out of range " + x)
+        p[b] = 1
     return p
 
 
@@ -495,51 +557,337 @@ def p_xor(a, b):
 
 
 def p_hist(p):
-    # c_s = number of registers with bit s set (input for Horvitz-Thompson cardinality on host)
+    # HLLSet::bit_counts(): c_s = number of registers with bit s set (HT input, host side)
     c = [0] * 32
     for k in p:
         c[k % 32] = c[k % 32] + 1
     return c
 
 
+def roaring_bytes(p):
+    # RoaringBitmap::serialize_into: cookie 12346, container count, (key, card-1),
+    # offsets, then the container. All bits < 32768 -> at most one container (key 0).
+    keys = sorted(p.keys())
+    n = len(keys)
+    out = [0x3A, 0x30, 0, 0]
+    if n == 0:
+        return out + [0, 0, 0, 0]
+    out = out + [1, 0, 0, 0, 0, 0, (n - 1) % 256, (n - 1) // 256, 16, 0, 0, 0]
+    if n <= ARRAY_LIMIT:
+        for k in keys:
+            out.append(k % 256)
+            out.append(k // 256)
+        return out
+    bm = [0] * 8192
+    for k in keys:
+        bm[k // 8] = bm[k // 8] | (1 << (k % 8))
+    return out + bm
+
+
 def cid_of(p):
-    # content key of a node: SHA-1 over the canonical position list
-    return "h:" + sha1_hex(plane_str(p))
+    # HLLSet::content_key(): "h:" + sha1(roaring bytes)
+    return "h:" + sha1_bytes(roaring_bytes(p))
+
+
+def hexkey(t):
+    # bytewise (UTF-8) sort key: Rust orders tokens as Vec<u8>; JS compares UTF-16 units
+    digits = "0123456789abcdef"
+    s = ""
+    for b in utf8(t):
+        s = s + digits[b >> 4] + digits[b & 15]
+    return s
+
+
+def sort_bytes(tokens):
+    m = {}
+    for t in tokens:
+        m[hexkey(t)] = t
+    return [m[k] for k in sorted(m.keys())]
+
+
+# ---- wire encodings for LUT fibers and TF ----
+def lut_str(lut):
+    # lut = {bit: {token: 1}} -> "bit:tok;bit:tok"
+    out = []
+    for b in sorted(lut.keys()):
+        for t in sort_bytes(lut[b].keys()):
+            out.append(str(b) + ":" + t)
+    return ";".join(out) if len(out) > 0 else "-"
+
+
+def lut_from(s, into):
+    if s == "" or s == "-":
+        return into
+    for e in s.split(";"):
+        i = e.index(":")
+        b = int(e[:i])
+        fib = into.get(b)
+        if fib is None:
+            fib = {}
+            into[b] = fib
+        fib[e[i + 1:]] = 1
+    return into
+
+
+def tf_str(tf):
+    out = []
+    for t in sort_bytes(tf.keys()):
+        out.append(t + ":" + str(tf[t]))
+    return ";".join(out) if len(out) > 0 else "-"
+
+
+def tf_from(s):
+    tf = {}
+    if s == "" or s == "-":
+        return tf
+    for e in s.split(";"):
+        i = e.index(":")
+        tf[e[:i]] = int(e[i + 1:])
+    return tf
+
+# ---------------- hllset-morphisms::api — default ingest / materialize ----------------
+# Port of ewm-state-machine/crates/hllset-morphisms/src/api.rs:
+#   padded = [PAD] + tokens + [PAD, PAD]
+#   channel 0 (G1): 1-grams, seed 0     channel 1 (G2): 2-grams, seed 1
+#   channel 2 (G3): 3-grams, seed 2     slide4 (S4_1d): 4-gram windows, seed 3, NO LUT
+#   n-gram bytes = utf8 parts joined with a NUL byte.
+#   LUT fiber of a window's bit holds the window's FIRST token, only for real start
+#   positions 1..n (pad-leading windows only set the atom).
+#   key = h:sha1(roaring(G1 | G2 | G3)); slide4 is not part of the projection.
+# The swarm splits the window START positions [0, L) into ranges; every board ingests
+# its range, the GRID unions the parts. Union is order-free, so the result is the same
+# as one Rust ingest() call over the whole text.
+
+PAD = "<PAD>"
+CHANNEL_SEEDS = [0, 1, 2]
+SLIDE_SEED = 3
+CHANNEL_NAMES = ["G1", "G2", "G3"]
+WALK_BUDGET = 20000     # node budget of the ordered walk (same as Rust)
+BITCACHE = {}
+
+
+def window_bit(parts, seed):
+    key = str(seed) + " " + " ".join(parts)      # tokens never contain spaces
+    b = BITCACHE.get(key)
+    if b is not None:
+        return b
+    d = []
+    for i in range(len(parts)):
+        if i > 0:
+            d.append(0)
+        d = d + utf8(parts[i])
+    b = bit_of_bytes(d, seed)
+    if len(BITCACHE) > 20000:
+        for k in list(BITCACHE.keys()):
+            del BITCACHE[k]
+    BITCACHE[key] = b
+    return b
+
+
+def ingest_part(toks, a, b, nreal):
+    # toks = padded[a : min(b + 3, L)], window starts s in [a, b), L = nreal + 3
+    L = nreal + 3
+    g = [{}, {}, {}]
+    s4 = {}
+    luts = [{}, {}, {}]
+    tf = {}
+    for s in range(a, b):
+        for n in range(1, 5):
+            if s + n > L:
+                continue
+            w = toks[s - a: s - a + n]
+            if n == 4:
+                s4[window_bit(w, SLIDE_SEED)] = 1
+                continue
+            bit = window_bit(w, CHANNEL_SEEDS[n - 1])
+            g[n - 1][bit] = 1
+            if s >= 1 and s <= nreal:
+                fib = luts[n - 1].get(bit)
+                if fib is None:
+                    fib = {}
+                    luts[n - 1][bit] = fib
+                fib[w[0]] = 1
+        if s >= 1 and s <= nreal:
+            t = toks[s - a]
+            tf[t] = tf.get(t, 0) + 1
+    return {"g": g, "s4": s4, "luts": luts, "tf": tf, "n": nreal}
+
+
+def ingest_all(tokens):
+    # the single-machine reference: one part covering every window
+    padded = [PAD] + tokens + [PAD, PAD]
+    return ingest_part(padded, 0, len(padded), len(tokens))
+
+
+def seal(rec):
+    # projection, keys and the hllsetLUT entries of a finished ingest
+    proj = p_union(p_union(rec["g"][0], rec["g"][1]), rec["g"][2])
+    rec["proj"] = proj
+    rec["key"] = cid_of(proj)
+    rec["keys"] = [cid_of(rec["g"][i]) for i in range(3)]
+    return rec
+
+
+def unordered_tokens(rec):
+    # materialize_no_order: LUT-first over the three (sketch, LUT) pairs, keep every candidate
+    out = {}
+    for ch in range(3):
+        for bit in rec["g"][ch]:
+            fib = rec["luts"][ch].get(bit)
+            if fib is not None:
+                for t in fib:
+                    out[t] = 1
+    return sort_bytes(out.keys())
+
+
+def _has(rec, ch, parts):
+    return window_bit(parts, CHANNEL_SEEDS[ch]) in rec["g"][ch]
+
+
+def _has4(rec, parts):
+    return window_bit(parts, SLIDE_SEED) in rec["s4"]
+
+
+def _edge_ok(rec, path, prev, cur, c):
+    # the joint 2-/3-/4-gram edge check of walk() / beam_search()
+    if not (_has(rec, 1, [cur, c]) and _has(rec, 2, [prev, cur, c])):
+        return False
+    if len(path) < 2:
+        return True
+    pp = PAD if len(path) == 2 else path[len(path) - 3]
+    return _has4(rec, [pp, prev, cur, c])
+
+
+def _rank(cands, tf):
+    # TF descending, then bytewise ascending (Rust: b.tf.cmp(a.tf).then(a.cmp(b)))
+    m = {}
+    for t in cands:
+        k = str(10000000 - tf.get(t, 0)) + "/" + hexkey(t)
+        m[k] = t
+    return [m[k] for k in sorted(m.keys())]
+
+
+def materialize_ordered(rec):
+    # api::materialize (Order::Ordered, beam 1): count-constrained greedy De Bruijn walk
+    # with backtracking, anchored at the start pad. Iterative (no deep recursion on PT).
+    tokens = unordered_tokens(rec)
+    n = rec["n"]
+    tf = rec["tf"]
+    if len(tokens) == 0 or n == 0:
+        return [], "empty"
+    remaining = {}
+    for t in tokens:
+        if tf.get(t, 0) > 0:
+            remaining[t] = tf[t]
+    starts = _rank([t for t in tokens if remaining.get(t, 0) > 0 and _has(rec, 1, [PAD, t])], tf)
+    budget = [WALK_BUDGET]
+    for start in starts:
+        if n == 1:
+            return [start], "ordered"
+        path = [start]
+        rem = {}
+        for t in remaining:
+            rem[t] = remaining[t]
+        rem[start] = rem[start] - 1
+        if _walk(rec, tokens, path, rem, budget):
+            return path, "ordered"
+        if budget[0] == 0:
+            break
+    return tokens, "fallback-set"
+
+
+def _enter(rec, tokens, path, rem, budget, prev, cur):
+    # one call of Rust walk(): True / False, or a list of successors to try
+    if budget[0] == 0:
+        return False
+    budget[0] = budget[0] - 1
+    if len(path) == rec["n"]:
+        return _edge_ok(rec, path, prev, cur, PAD)
+    nexts = [c for c in tokens if rem.get(c, 0) > 0 and _edge_ok(rec, path, prev, cur, c)]
+    return _rank(nexts, rec["tf"])
+
+
+def _walk(rec, tokens, path, rem, budget):
+    first = _enter(rec, tokens, path, rem, budget, PAD, path[0])
+    if first is True or first is False:
+        return first
+    stack = [[PAD, path[0], first, 0]]          # frame = [prev, cur, nexts, next index]
+    while len(stack) > 0:
+        fr = stack[len(stack) - 1]
+        if fr[3] >= len(fr[2]):
+            stack.pop()                          # frame exhausted -> parent undoes its step
+            if len(stack) == 0:
+                return False
+            last = path.pop()
+            rem[last] = rem[last] + 1
+            continue
+        nx = fr[2][fr[3]]
+        fr[3] = fr[3] + 1
+        rem[nx] = rem[nx] - 1
+        path.append(nx)
+        r = _enter(rec, tokens, path, rem, budget, fr[1], nx)
+        if r is True:
+            return True
+        if r is False:
+            path.pop()
+            rem[nx] = rem[nx] + 1
+            continue
+        stack.append([fr[1], nx, r, 0])
+    return False
+
+
+# ---- record wire format: g1|g2|g3|s4|lut1|lut2|lut3|tf ----
+def rec_fields(rec):
+    return [plane_str(rec["g"][0]), plane_str(rec["g"][1]), plane_str(rec["g"][2]), plane_str(rec["s4"]),
+            lut_str(rec["luts"][0]), lut_str(rec["luts"][1]), lut_str(rec["luts"][2]), tf_str(rec["tf"])]
+
+
+def rec_from(f, n):
+    return {"g": [plane_from(f[0]), plane_from(f[1]), plane_from(f[2])], "s4": plane_from(f[3]),
+            "luts": [lut_from(f[4], {}), lut_from(f[5], {}), lut_from(f[6], {})], "tf": tf_from(f[7]), "n": n}
 
 # ================= FPGA board (swarm member): soldered HLLSet core =================
-# Integer-only work: hash -> (reg, tz) -> bit, algebra OR/AND/AND-NOT/XOR, popcount,
-# D/R/N, histogram c_s. Planes live in GRID (LOAD/STORE through the network).
+# Integer-only work: n-gram windows -> murmur3 -> (reg, tz) -> bit, LUT fibers, TF counts,
+# lattice algebra OR/AND/AND-NOT/XOR, popcount, D/R/N, c_s histogram and the ordered
+# materialize walk. Planes live in GRID (MERGE / SEAL / GET / PUT through the network).
 BOARD = "FPGA1"
 PORT = 5100
 GRID_IP = "192.168.40.10"
 GRID_PORT = 5200
 
 GRID = Peer("GRID", GRID_IP, GRID_PORT)
-STATS = {"tokens": 0, "ops": 0}
+STATS = {"windows": 0, "ops": 0}
 
 
-def ingest(conn, rid, a):
-    # INGEST|user|seed|name|tok tok tok
-    user, seed, name, toks = a[0], int(a[1]), a[2], a[3].split(" ")
-    p = {}
-    lut = []
-    for t in toks:
-        if t == "":
-            continue
-        reg, tz = position(t, seed)
-        k = reg * 32 + tz
-        p[k] = 1
-        lut.append(str(k) + ":" + t)
-    STATS["tokens"] = STATS["tokens"] + len(lut)
-    log("RED", BOARD + " INGEST " + user + "/" + name + " " + str(len(lut)) + " tokens seed=" + str(seed) + " -> " + str(len(p)) + " bits")
+def part(conn, rid, a):
+    # PART|user|job|part|a|b|n|tok tok ...   window starts [a, b) of [PAD]+text+[PAD,PAD]
+    user, job, pi, lo, hi, n = a[0], a[1], a[2], int(a[3]), int(a[4]), int(a[5])
+    toks = a[6].split(" ")
+    if lo < 0 or hi > n + 3 or lo >= hi or len(toks) != min(hi + 3, n + 3) - lo:
+        conn.send([rid, "ERR", BOARD + ": bad part range"])
+        return
+    p = ingest_part(toks, lo, hi, n)
+    STATS["windows"] = STATS["windows"] + (hi - lo)
+    bits = len(p["g"][0]) + len(p["g"][1]) + len(p["g"][2])
+    log("RED", BOARD + " PART " + user + " job " + job + "#" + pi + " windows " + str(lo) + ".." + str(hi - 1) + " -> " + str(bits) + " atoms")
 
     def done(r):
         if r[0] == "OK":
-            conn.send([rid, "OK", BOARD, len(lut), r[1], r[2]])
+            conn.send([rid, "OK", BOARD, pi, hi - lo, bits])
         else:
             conn.send([rid, "ERR", BOARD + ": " + r[-1]])
 
-    GRID.call(["MERGE", user, name, plane_str(p), ";".join(lut) if len(lut) > 0 else "-"], done)
+    GRID.call(["MERGE", user, job, pi] + rec_fields(p), done)
+
+
+def seal_req(conn, rid, a):
+    # SEAL|user|job|name|n|parts
+    def done(r):
+        if r[0] == "OK":
+            conn.send([rid, "OK", BOARD] + r[1:])
+        else:
+            conn.send([rid, "ERR", BOARD + ": " + r[-1]])
+    GRID.call(["SEAL"] + a[:5], done)
 
 
 def load2(user, ra, rb, cb):
@@ -565,10 +913,10 @@ def load2(user, ra, rb, cb):
 
 
 def query(conn, rid, a):
-    # QUERY|user|seed|OP|A|B
-    user, op = a[0], a[2]
-    ra = a[3] if len(a) > 3 else ""
-    rb = a[4] if len(a) > 4 and a[4] != "" else None
+    # QUERY|user|OP|A|B
+    user, op = a[0], a[1]
+    ra = a[2] if len(a) > 2 else ""
+    rb = a[3] if len(a) > 3 and a[3] != "" else None
     STATS["ops"] = STATS["ops"] + 1
     log("RED", BOARD + " " + op + " " + user + " " + ra + ("" if rb is None else " " + rb))
 
@@ -602,7 +950,7 @@ def query(conn, rid, a):
         elif op == "SUBSET":
             conn.send([rid, "OK", BOARD, ra + "<=" + rb, "yes" if len(p_diff(pa, pb)) == 0 else "no"])
         elif op == "DRN":
-            # A = previous state, B = current state
+            # A = H(t-1) previous state, B = S(t) current state (ewm-git view.rs)
             d = p_diff(pa, pb)
             r = p_inter(pa, pb)
             n = p_diff(pb, pa)
@@ -626,22 +974,38 @@ def query(conn, rid, a):
         elif op == "LOOKUP":
             def got(r):
                 if r[0] == "OK":
-                    conn.send([rid, "OK", BOARD, ra, r[1], r[2]])
+                    conn.send([rid, "OK", BOARD, ra, r[1], r[2], "set"])
                 else:
                     fail(r[-1])
             GRID.call(["LOOKUP", user, plane_str(pa)], got)
         else:
             fail("unknown op " + op)
 
-    if op == "LIST":
+    if op == "LIST" or op == "STAT" or op == "HLUT":
         def got_list(r):
             conn.send([rid] + r[:1] + [BOARD] + r[1:])
-        GRID.call(["LIST", user], got_list)
+        GRID.call([op, user], got_list)
         return
-    if op == "STAT":
-        def got_stat(r):
-            conn.send([rid] + r[:1] + [BOARD] + r[1:])
-        GRID.call(["STAT"], got_stat)
+    if op == "LOOKUP" or op == "TOKENS":
+        # an ingest record is restored by hllset-morphisms::materialize (ordered) or
+        # materialize_no_order; a computed node falls back to the LUT-first set
+        def got_rec(r):
+            if r[0] == "NOREC":
+                load2(user, ra, None, compute)
+                return
+            if r[0] != "OK":
+                fail(r[-1])
+                return
+            rec = rec_from(r[3:11], int(r[2]))
+            if op == "TOKENS":
+                toks = unordered_tokens(rec)
+                mode = "no_order"
+            else:
+                res = materialize_ordered(rec)
+                toks = res[0]
+                mode = res[1]
+            conn.send([rid, "OK", BOARD, ra, len(toks), " ".join(toks) if len(toks) > 0 else "-", mode])
+        GRID.call(["REC", user, ra], got_rec)
         return
     two = op in ["UNION", "INTERSECT", "DIFF", "XOR", "SUBSET", "DRN"]
     if two and rb is None:
@@ -651,8 +1015,10 @@ def query(conn, rid, a):
 
 
 def handle(conn, rid, cmd, a):
-    if cmd == "INGEST":
-        ingest(conn, rid, a)
+    if cmd == "PART":
+        part(conn, rid, a)
+    elif cmd == "SEAL":
+        seal_req(conn, rid, a)
     elif cmd == "QUERY":
         query(conn, rid, a)
     elif cmd == "PING":
@@ -667,7 +1033,7 @@ SERVER = Server(BOARD, PORT, handle)
 def tick():
     GRID.tick()
     if TICK[0] % 120 == 0:
-        log(BOARD, "tokens=" + str(STATS["tokens"]) + " ops=" + str(STATS["ops"]) + " grid=" + ("up" if GRID.ready else "down"))
+        log(BOARD, "windows=" + str(STATS["windows"]) + " ops=" + str(STATS["ops"]) + " grid=" + ("up" if GRID.ready else "down"))
 
 
 def main():

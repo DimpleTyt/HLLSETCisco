@@ -3,8 +3,9 @@
 # and bitwise ops are 32-bit. So every 64-bit value is 4 limbs of 16 bits,
 # little-endian: [bits 0-15, 16-31, 32-47, 48-63]. Bitwise ops only touch values < 2^16,
 # products of two limbs stay < 2^32 (exact in a double) and are split with % and //.
-# Bit-exact with hllset-core: h = murmur3_x64_128(utf8(token), seed as u32).low64,
-# reg = h & 0x3FF, tz = min(ctz(h >> 10), 31).
+# Bit-exact with hllset-contracts (ewm-state-machine):
+# h = murmur3_x64_128(bytes, seed as u32).low64, reg = h & 0x3FF, tz = min(ctz(h >> 10), 31),
+# bit = reg * 32 + tz.
 
 L16 = 65536
 C1 = [0x53d5, 0x1142, 0x7b91, 0x87c3]   # 0x87c37b91114253d5
@@ -119,7 +120,11 @@ def word(d, i, n):
 
 
 def murmur64(text, seed):
-    d = utf8(text)
+    return murmur64_bytes(utf8(text), seed)
+
+
+def murmur64_bytes(d, seed):
+    # d = list of byte values 0..255
     n = len(d)
     s32 = seed % 4294967296
     h1 = small(s32)
@@ -174,10 +179,21 @@ def ctz(x):
     return 64
 
 
-def position(text, seed):
-    h = murmur64(text, seed)
+def position_of(h):
+    # hllset-contracts::hash_to_position: reg = h & 1023, tz = min(ctz(h >> 10), 31)
+    # (h >> 10 == 0 gives ctz = 64 -> 31, the saturated convention of Rust)
     reg = h[0] & 0x3FF
     tz = ctz(shr(h, 10))
     if tz > 31:
         tz = 31
     return reg, tz
+
+
+def position(text, seed):
+    return position_of(murmur64(text, seed))
+
+
+def bit_of_bytes(d, seed):
+    # BitAddress::of_token_seeded(bytes, seed).bit() = reg * 32 + tz
+    reg, tz = position_of(murmur64_bytes(d, seed))
+    return reg * 32 + tz
