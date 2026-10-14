@@ -6,7 +6,7 @@
 
 Основа: чертёж архитектуры, репозиторий `hllset-next-v2` и статьи *Emerging World Models* и *The EWM Lattice and Its Worlds* (A. Mylnikov et al., 2026).
 
-![Исходный чертёж](CiscoHllSET.png)
+![Исходный чертёж](HLLSETCisco\docs\img\CiscoHllSET.png)
 
 ## Топология
 
