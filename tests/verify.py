@@ -8,9 +8,7 @@ for n in list(range(0,130))+[1000]:
     s=''.join(random.choice(string.ascii_letters+',0123456789я') for _ in range(n))
     if ns['sha1_hex'](s)!=hashlib.sha1(s.encode()).hexdigest(): bad+=1
 print('sha1 mismatches', bad)
-# 2) single-board ingest gives same CID as 5-board parallel ingest
+# 2) swarm ingest (any split of window positions) gives the same CID as one Rust ingest()
 toks=ns['tokenize']("the quick brown fox jumps over the lazy dog")
-p={}
-for tk in toks:
-    r,tz=ns['position'](tk,101); p[r*32+tz]=1
-print('single-board cid', ns['cid_of'](p))
+rec=ns['seal'](ns['ingest_all'](toks))
+print('single-board cid', rec['key'], 'expected h:7d9a5e9f037701086178d45f191e35fae6d0c062')

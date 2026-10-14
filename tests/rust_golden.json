@@ -1,0 +1,2537 @@
+[
+{
+"tokens": [
+"the",
+"quick",
+"brown",
+"fox",
+"jumps",
+"over",
+"the",
+"lazy",
+"dog"
+],
+"key": "h:7d9a5e9f037701086178d45f191e35fae6d0c062",
+"keys": [
+"h:07623eac1c321071a617927235dbfb93fc7277e9",
+"h:5fc7fa066b4f272c7dc2b1cd753b926288143ebc",
+"h:77df64237e56159c8ce30554cd4e27a0ed30adb1"
+],
+"ordered": [
+"the",
+"quick",
+"brown",
+"fox",
+"jumps",
+"over",
+"the",
+"lazy",
+"dog"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"jumps",
+"lazy",
+"over",
+"quick",
+"the"
+],
+"card": 30.0
+},
+{
+"tokens": [
+"the",
+"quick",
+"red",
+"fox",
+"runs",
+"past",
+"the",
+"sleepy",
+"cat"
+],
+"key": "h:ca9ba9f6553737abc08c790e4cf92baf1c63f7a0",
+"keys": [
+"h:5f065455279e9ab26c7557133a6e0f32feaa7eab",
+"h:fa51ac14afccf0b9aaa7364805f014bf5bf9ad8c",
+"h:540ee84824fb61ef724e77f63390fd202abc232e"
+],
+"ordered": [
+"the",
+"quick",
+"red",
+"fox",
+"runs",
+"past",
+"the",
+"sleepy",
+"cat"
+],
+"no_order": [
+"cat",
+"fox",
+"past",
+"quick",
+"red",
+"runs",
+"sleepy",
+"the"
+],
+"card": 30.0
+},
+{
+"tokens": [
+"ha",
+"ha",
+"ha"
+],
+"key": "h:373e6fa1641d6d2254a1550e07b40f46031e9555",
+"keys": [
+"h:fff9f8b33f8cebcc8537cc330051d1cdfe4762de",
+"h:43ec19b74c8164c8400e1ad9d7013e001cd0a24b",
+"h:c6e3f9ffd7b29eab207e6461cd639aed03234496"
+],
+"ordered": [
+"ha",
+"ha",
+"ha"
+],
+"no_order": [
+"ha"
+],
+"card": 10.0
+},
+{
+"tokens": [
+"ha",
+"ha",
+"ha",
+"ha"
+],
+"key": "h:373e6fa1641d6d2254a1550e07b40f46031e9555",
+"keys": [
+"h:fff9f8b33f8cebcc8537cc330051d1cdfe4762de",
+"h:43ec19b74c8164c8400e1ad9d7013e001cd0a24b",
+"h:c6e3f9ffd7b29eab207e6461cd639aed03234496"
+],
+"ordered": [
+"ha",
+"ha",
+"ha",
+"ha"
+],
+"no_order": [
+"ha"
+],
+"card": 10.0
+},
+{
+"tokens": [
+"fact"
+],
+"key": "h:c6d86962b42bd84669e2cda373a6eec32f8c4719",
+"keys": [
+"h:dc9f18322a9239835dc06a322ea75cdd6330c3f7",
+"h:ec6f8a0bffc6a50e41dfaeb0fc6b327c8548286d",
+"h:d2874ba6e49e2355f4e9bebae9ca913da80c941f"
+],
+"ordered": [
+"fact"
+],
+"no_order": [
+"fact"
+],
+"card": 7.0
+},
+{
+"tokens": [
+"note"
+],
+"key": "h:40ff99906026b816de2794d5c42a142c58685ffe",
+"keys": [
+"h:dc9f18322a9239835dc06a322ea75cdd6330c3f7",
+"h:c0ff398249d1a3e004101346df6829efb34ea266",
+"h:e26dafd918fbefb87fc429882c0d53ae010d5ab0"
+],
+"ordered": [
+"note"
+],
+"no_order": [
+"note"
+],
+"card": 7.0
+},
+{
+"tokens": [
+"нет",
+"да",
+"да",
+"нет",
+"да",
+"да",
+"да",
+"нет"
+],
+"key": "h:4af557bbc7e276a65402502f836d0e695cdb3818",
+"keys": [
+"h:811ba9639022b67c4f71052659fba44103022a41",
+"h:27a591432cce12c1c1cadf2071945bc58dc4fdb2",
+"h:80da68ff409a0931107132782562649800170978"
+],
+"ordered": [
+"нет",
+"да",
+"да",
+"да",
+"нет",
+"да",
+"да",
+"нет"
+],
+"no_order": [
+"да",
+"нет"
+],
+"card": 16.0
+},
+{
+"tokens": [
+"日本",
+"кот",
+"日本",
+"ha",
+"dog",
+"dog",
+"кот",
+"日本"
+],
+"key": "h:d0174642b385675c8e38b59892c04ed652238821",
+"keys": [
+"h:64409dbc5157dd4edd062fcf111266fbd85939c2",
+"h:c764c3908b3507717d78a183ff58b048775f77cc",
+"h:2ae6fc91f67fdcbf1a1bd36a63935d9f2415cf41"
+],
+"ordered": [
+"日本",
+"кот",
+"日本",
+"ha",
+"dog",
+"dog",
+"кот",
+"日本"
+],
+"no_order": [
+"dog",
+"ha",
+"кот",
+"日本"
+],
+"card": 23.0
+},
+{
+"tokens": [
+"fox",
+"brown",
+"ha",
+"кот",
+"dog",
+"да",
+"пёс",
+"ha",
+"brown",
+"quick"
+],
+"key": "h:b7798a2f274faab23a088ba80b75114dc2bc2f32",
+"keys": [
+"h:e6f0e5e0f03196aa89784611b00800e8efd838e2",
+"h:312b7571ce56f77d9db291c5ab694c13db296d5b",
+"h:17adce9a3cc6c8cb9b1dd24df3cd3e3c9ec1a8f1"
+],
+"ordered": [
+"fox",
+"brown",
+"ha",
+"кот",
+"dog",
+"да",
+"пёс",
+"ha",
+"brown",
+"quick"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"ha",
+"quick",
+"да",
+"кот",
+"пёс"
+],
+"card": 32.0
+},
+{
+"tokens": [
+"jumps",
+"brown",
+"quick",
+"кот",
+"ha",
+"нет",
+"да",
+"the"
+],
+"key": "h:3781444bd0b39ec667999484046625a46efc0201",
+"keys": [
+"h:8f1b5697fdcbe9ae19d234b09eb962502e92f52f",
+"h:6f61e348f98d875e84933e8a1fd030421f0a2dbb",
+"h:e197aa8443500899593b7c52637f4024eedfea3b"
+],
+"ordered": [
+"jumps",
+"brown",
+"quick",
+"кот",
+"ha",
+"нет",
+"да",
+"the"
+],
+"no_order": [
+"brown",
+"ha",
+"jumps",
+"quick",
+"the",
+"да",
+"кот",
+"нет"
+],
+"card": 28.0
+},
+{
+"tokens": [
+"lazy",
+"dog",
+"да",
+"нет",
+"пёс",
+"да",
+"brown",
+"пёс",
+"the",
+"日本"
+],
+"key": "h:85af89719039b2b123686f47d04e92e69a3798a4",
+"keys": [
+"h:8ac038ff665afc10518723899628dbb2397af350",
+"h:b0d2e56e87bfdfc8c9d05bc48c4a6a8a61c06869",
+"h:8a003ff39107b9965d3614ab79f981043fdf5715"
+],
+"ordered": [
+"lazy",
+"dog",
+"да",
+"нет",
+"пёс",
+"да",
+"brown",
+"пёс",
+"the",
+"日本"
+],
+"no_order": [
+"brown",
+"dog",
+"lazy",
+"the",
+"да",
+"нет",
+"пёс",
+"日本"
+],
+"card": 32.0
+},
+{
+"tokens": [
+"quick",
+"the",
+"the",
+"fox",
+"fox",
+"пёс",
+"the",
+"ha",
+"dog"
+],
+"key": "h:9eec839d9a1a128056ee798d16b3cfc6cab1e3af",
+"keys": [
+"h:8650e6861dafb8d986ee1f1d444959f6ff5b13ea",
+"h:26051d89638f9aaaf59001fb79bee9676d6ff49e",
+"h:1ebd6d2785d229d547fc825715f6411eb13d0cec"
+],
+"ordered": [
+"quick",
+"the",
+"the",
+"fox",
+"fox",
+"пёс",
+"the",
+"ha",
+"dog"
+],
+"no_order": [
+"dog",
+"fox",
+"ha",
+"quick",
+"the",
+"пёс"
+],
+"card": 28.0
+},
+{
+"tokens": [
+"dog",
+"пёс",
+"日本",
+"fox",
+"кот",
+"fox"
+],
+"key": "h:0a1492318b3dab1f0b2c15ca62dd9893b76ca861",
+"keys": [
+"h:9f19ad8a554e9a964ddc0ef1872a7c503b0e1e38",
+"h:77d31dff1f5b4464b565934652f35739a5bcb7f6",
+"h:251c550a76c3a7f0b1241775825e3b86e54cef21"
+],
+"ordered": [
+"dog",
+"пёс",
+"日本",
+"fox",
+"кот",
+"fox"
+],
+"no_order": [
+"dog",
+"fox",
+"кот",
+"пёс",
+"日本"
+],
+"card": 21.0
+},
+{
+"tokens": [
+"jumps",
+"dog",
+"the",
+"да",
+"quick",
+"dog",
+"да",
+"jumps",
+"lazy",
+"кот",
+"日本"
+],
+"key": "h:f32ce1649952179f6d0631784f78ab3ca238424d",
+"keys": [
+"h:652a62c35902cae1abd26f976e4b9981efd3f157",
+"h:ed0f38d765a4da0e070b58dce5fb784653380681",
+"h:271418a3feb995b91ab2c3aa8e95e5baecf3831d"
+],
+"ordered": [
+"jumps",
+"dog",
+"the",
+"да",
+"quick",
+"dog",
+"да",
+"jumps",
+"lazy",
+"кот",
+"日本"
+],
+"no_order": [
+"dog",
+"jumps",
+"lazy",
+"quick",
+"the",
+"да",
+"кот",
+"日本"
+],
+"card": 34.0
+},
+{
+"tokens": [
+"нет",
+"jumps"
+],
+"key": "h:265666e58741f39ab3edf289b8bc0305cec3d8d4",
+"keys": [
+"h:40ad4e522a072e4c601b7b087ac2ec223d823076",
+"h:92cf83f7c9442d1562963e2fcbaa48046f33daeb",
+"h:1a1ae1eb444baac4134272259ac50effc8adf8ae"
+],
+"ordered": [
+"нет",
+"jumps"
+],
+"no_order": [
+"jumps",
+"нет"
+],
+"card": 10.0
+},
+{
+"tokens": [
+"ha",
+"fox",
+"кот",
+"jumps",
+"the",
+"quick"
+],
+"key": "h:c276f01f8549c78c5ad681fbf349dcf478763519",
+"keys": [
+"h:362c8dffff48c63ef76d968a61d40c063cf1bcfa",
+"h:25131f4df65d672915ba6966210549f502d0d916",
+"h:9470497a3a64281041003667a36136719d2df42b"
+],
+"ordered": [
+"ha",
+"fox",
+"кот",
+"jumps",
+"the",
+"quick"
+],
+"no_order": [
+"fox",
+"ha",
+"jumps",
+"quick",
+"the",
+"кот"
+],
+"card": 22.0
+},
+{
+"tokens": [
+"ha",
+"quick",
+"lazy",
+"quick",
+"日本",
+"jumps",
+"lazy",
+"quick",
+"the",
+"日本"
+],
+"key": "h:752690ebe99a2c9b34032d7dfd203b092f4f772e",
+"keys": [
+"h:0644d6ebbe6a290693d4d47e9b675dabd009bca3",
+"h:54b37c44f32281d40be7b580eed34130c789dfa5",
+"h:2a0d38ef23f07a189474ee3aee4f8135e5b30ec0"
+],
+"ordered": [
+"ha",
+"quick",
+"lazy",
+"quick",
+"日本",
+"jumps",
+"lazy",
+"quick",
+"the",
+"日本"
+],
+"no_order": [
+"ha",
+"jumps",
+"lazy",
+"quick",
+"the",
+"日本"
+],
+"card": 28.0
+},
+{
+"tokens": [
+"the",
+"fox",
+"fox",
+"the",
+"dog",
+"lazy",
+"нет",
+"lazy",
+"lazy",
+"quick",
+"пёс"
+],
+"key": "h:1bbefa9b36c43ee91148702abfd1343c5e979bdf",
+"keys": [
+"h:c375daff8e5043c8a56c217f267c0bd8f5098406",
+"h:2c26fd5811df70928732377e62e7d45c68fbc1d3",
+"h:948cc18279747c85bd7c459add6fb3031276d296"
+],
+"ordered": [
+"the",
+"fox",
+"fox",
+"the",
+"dog",
+"lazy",
+"нет",
+"lazy",
+"lazy",
+"quick",
+"пёс"
+],
+"no_order": [
+"dog",
+"fox",
+"lazy",
+"quick",
+"the",
+"нет",
+"пёс"
+],
+"card": 33.0
+},
+{
+"tokens": [
+"fox",
+"ha",
+"да",
+"jumps",
+"over",
+"quick",
+"jumps",
+"over",
+"the",
+"lazy",
+"ha"
+],
+"key": "h:c29f908d5bd603eaf6351589916b6e0d2baeaf25",
+"keys": [
+"h:971145a98697c8d6483ceab58e63b51deee19631",
+"h:821199c432a0187f4b6b5cbaa196e77ea5ef820f",
+"h:7d4bd0b78e75c9b217114d7fa02a7d9fa42ffe98"
+],
+"ordered": [
+"fox",
+"ha",
+"да",
+"jumps",
+"over",
+"quick",
+"jumps",
+"over",
+"the",
+"lazy",
+"ha"
+],
+"no_order": [
+"fox",
+"ha",
+"jumps",
+"lazy",
+"over",
+"quick",
+"the",
+"да"
+],
+"card": 33.0
+},
+{
+"tokens": [
+"quick",
+"brown",
+"fox",
+"нет",
+"quick",
+"the",
+"the",
+"dog",
+"ha",
+"dog",
+"brown",
+"да",
+"кот",
+"fox",
+"dog"
+],
+"key": "h:d07379134a220ac90838e4cade66890932320f58",
+"keys": [
+"h:ea7a6c540abf016cd17129346578ea3c92bd4749",
+"h:bf18681b4ef288ea33b916bb45e509f4b737072b",
+"h:f4a73818b405c5ca143fd32a711212b1b7c09226"
+],
+"ordered": [
+"quick",
+"brown",
+"fox",
+"нет",
+"quick",
+"the",
+"the",
+"dog",
+"ha",
+"dog",
+"brown",
+"да",
+"кот",
+"fox",
+"dog"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"ha",
+"quick",
+"the",
+"да",
+"кот",
+"нет"
+],
+"card": 43.0
+},
+{
+"tokens": [
+"fox",
+"нет",
+"ha",
+"brown",
+"lazy",
+"да",
+"lazy",
+"quick",
+"lazy"
+],
+"key": "h:771f8a99917fb8f6517dcbc9ab7588f47eed6c8c",
+"keys": [
+"h:22f212283384a9227872df040c9f4b207eb492f2",
+"h:c4b057f636fe4d95fb8f19300b7f794768e91d0e",
+"h:f86bcb331030dc22ff1daa136b9e80e771c4f34a"
+],
+"ordered": [
+"fox",
+"нет",
+"ha",
+"brown",
+"lazy",
+"да",
+"lazy",
+"quick",
+"lazy"
+],
+"no_order": [
+"brown",
+"fox",
+"ha",
+"lazy",
+"quick",
+"да",
+"нет"
+],
+"card": 29.0
+},
+{
+"tokens": [
+"fox",
+"the",
+"jumps",
+"日本",
+"ha",
+"пёс",
+"jumps"
+],
+"key": "h:dfbce5f91d998890f3765521094b14e9ff049a22",
+"keys": [
+"h:df886c0d52d025056ac0ad9fa4c851d8d3b94bae",
+"h:618f65fbbb2ed68365463eb4f58bf14b7433e71f",
+"h:3fadc08972066dd994e8cc4115f33fb11b79dff8"
+],
+"ordered": [
+"fox",
+"the",
+"jumps",
+"日本",
+"ha",
+"пёс",
+"jumps"
+],
+"no_order": [
+"fox",
+"ha",
+"jumps",
+"the",
+"пёс",
+"日本"
+],
+"card": 24.0
+},
+{
+"tokens": [
+"the",
+"fox",
+"brown",
+"lazy",
+"日本",
+"пёс",
+"да",
+"пёс",
+"quick",
+"the",
+"brown",
+"fox",
+"dog",
+"jumps",
+"the"
+],
+"key": "h:74c38526e349177a2f8fc04906a59e45809d5f3d",
+"keys": [
+"h:296f2113589dd1f8629765ef03ce3f4fd580ecf4",
+"h:ab97ac775c9ec675b2ebd29ca9705c038aeb6cc0",
+"h:7e166f6d4737ac6c46b8c786707a1599763530c1"
+],
+"ordered": [
+"the",
+"fox",
+"brown",
+"lazy",
+"日本",
+"пёс",
+"да",
+"пёс",
+"quick",
+"the",
+"brown",
+"fox",
+"dog",
+"jumps",
+"the"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"jumps",
+"lazy",
+"quick",
+"the",
+"да",
+"пёс",
+"日本"
+],
+"card": 44.0
+},
+{
+"tokens": [
+"пёс",
+"over",
+"日本",
+"jumps",
+"lazy",
+"quick",
+"quick",
+"quick",
+"fox",
+"пёс",
+"да",
+"fox",
+"the"
+],
+"key": "h:ea9c800c0f0f5c642725af9ea7cff9f4f032b31f",
+"keys": [
+"h:604c20c4d04cc9817e0357922db2910bb4b569e7",
+"h:9d45b8b323bfb116d5b519a7174689e50d57847e",
+"h:4530305d2bf86bbeae4531891aa15272e1e2deb1"
+],
+"ordered": [
+"пёс",
+"over",
+"日本",
+"jumps",
+"lazy",
+"quick",
+"quick",
+"quick",
+"fox",
+"пёс",
+"да",
+"fox",
+"the"
+],
+"no_order": [
+"fox",
+"jumps",
+"lazy",
+"over",
+"quick",
+"the",
+"да",
+"пёс",
+"日本"
+],
+"card": 37.0
+},
+{
+"tokens": [
+"over",
+"over",
+"пёс",
+"dog",
+"brown",
+"пёс",
+"dog",
+"日本",
+"пёс",
+"brown"
+],
+"key": "h:8a745dee840c1ad1a97ffd5651d83df6d2602e8c",
+"keys": [
+"h:57e1fe3da13c03098e2666c3bf4e18c029d8011e",
+"h:015cc145f3e55f1ac074c7b071bd2c3dd79e7ef5",
+"h:33a1227c3fae5d3d37eb10782f0a04a4dc7b580d"
+],
+"ordered": [
+"over",
+"over",
+"пёс",
+"dog",
+"brown",
+"пёс",
+"dog",
+"日本",
+"пёс",
+"brown"
+],
+"no_order": [
+"brown",
+"dog",
+"over",
+"пёс",
+"日本"
+],
+"card": 27.0
+},
+{
+"tokens": [
+"lazy",
+"brown",
+"да",
+"brown",
+"jumps",
+"fox",
+"日本",
+"пёс",
+"fox",
+"нет",
+"fox",
+"brown",
+"нет",
+"да"
+],
+"key": "h:68f1c4f6101a96ff4faaf4d6e43a60fec23fb527",
+"keys": [
+"h:e9ed0b2587a241dde4c9efe31c8af9ae1e797cc0",
+"h:471c93be4fc4e0d9331c9dbff27fa07f5e4d3220",
+"h:cedea66712f57557f8f7d8817019dcf1ca64fae9"
+],
+"ordered": [
+"lazy",
+"brown",
+"да",
+"brown",
+"jumps",
+"fox",
+"日本",
+"пёс",
+"fox",
+"нет",
+"fox",
+"brown",
+"нет",
+"да"
+],
+"no_order": [
+"brown",
+"fox",
+"jumps",
+"lazy",
+"да",
+"нет",
+"пёс",
+"日本"
+],
+"card": 39.0
+},
+{
+"tokens": [
+"fox",
+"да",
+"lazy",
+"dog",
+"пёс",
+"quick",
+"lazy",
+"the",
+"quick"
+],
+"key": "h:92f086935ea93f7bb155525179c253fadaaa00b1",
+"keys": [
+"h:b8f23918f2985514ebad29af6a3e58147ef06e41",
+"h:acf1dafb45777f286d14154ef6bd8c8cf5b6babd",
+"h:129c2b7d94b6b4386f0934c17ab56b0d322ede12"
+],
+"ordered": [
+"fox",
+"да",
+"lazy",
+"dog",
+"пёс",
+"quick",
+"lazy",
+"the",
+"quick"
+],
+"no_order": [
+"dog",
+"fox",
+"lazy",
+"quick",
+"the",
+"да",
+"пёс"
+],
+"card": 29.0
+},
+{
+"tokens": [
+"the",
+"кот"
+],
+"key": "h:39159c4f5ccb62a15da0087d1404de974f0d444c",
+"keys": [
+"h:86437c7801d4c564b496e3abec540e1d6074279f",
+"h:49e210ccf826f32f118b9947029ba13c3feb9fd7",
+"h:6b5ef118013b7a19ad6ad054df5cfb26f2c39036"
+],
+"ordered": [
+"the",
+"кот"
+],
+"no_order": [
+"the",
+"кот"
+],
+"card": 9.0
+},
+{
+"tokens": [
+"fox",
+"нет",
+"нет",
+"lazy",
+"jumps"
+],
+"key": "h:ce55bc85e5193ec23f9947e824fd46617a118bb7",
+"keys": [
+"h:6e2f1f6ed41d3cd25e3d10fa490e1cf0668556ad",
+"h:d525f36ec36ff60d9469156478a20bdd9376c021",
+"h:9ad04c43716f4c33a163295cb58f1b99d944f225"
+],
+"ordered": [
+"fox",
+"нет",
+"нет",
+"lazy",
+"jumps"
+],
+"no_order": [
+"fox",
+"jumps",
+"lazy",
+"нет"
+],
+"card": 18.0
+},
+{
+"tokens": [
+"日本",
+"пёс",
+"dog",
+"jumps",
+"кот",
+"brown",
+"нет"
+],
+"key": "h:c7bbe39b1151408b85b31659441b9a0d245cd6f2",
+"keys": [
+"h:8891b2208a7f399ca4f03a021bd03d06a9ef25ae",
+"h:58c6b777ae82e4217569f262728c3b09c22df37e",
+"h:d23ecbebaf41c3d95cb2650f4b7a7d187192b1c6"
+],
+"ordered": [
+"日本",
+"пёс",
+"dog",
+"jumps",
+"кот",
+"brown",
+"нет"
+],
+"no_order": [
+"brown",
+"dog",
+"jumps",
+"кот",
+"нет",
+"пёс",
+"日本"
+],
+"card": 25.0
+},
+{
+"tokens": [
+"brown",
+"fox"
+],
+"key": "h:acc765bd016034b57cbd7c9ab8435b180269b6c6",
+"keys": [
+"h:cf6a44c1a288097f56c29075348fb3c05eecb13a",
+"h:c7a08357a43dcc17241b84193687e3f2723aadc7",
+"h:f3623b0b370601d39c97b850751426b91cdab887"
+],
+"ordered": [
+"brown",
+"fox"
+],
+"no_order": [
+"brown",
+"fox"
+],
+"card": 10.0
+},
+{
+"tokens": [
+"кот",
+"да",
+"日本",
+"пёс",
+"пёс",
+"quick",
+"jumps",
+"fox"
+],
+"key": "h:d59b4fd8030b54d95d7915d9232500a0d7c7bfd2",
+"keys": [
+"h:deb60ed1637e79c17a6e529b04a4ea4b0e492443",
+"h:5fd1502c1a9e0fac0b09a7b8448eaafddda5d85d",
+"h:ea07f0344ea6df173fe8fa02a330fe8cdb00c47b"
+],
+"ordered": [
+"кот",
+"да",
+"日本",
+"пёс",
+"пёс",
+"quick",
+"jumps",
+"fox"
+],
+"no_order": [
+"fox",
+"jumps",
+"quick",
+"да",
+"кот",
+"пёс",
+"日本"
+],
+"card": 26.0
+},
+{
+"tokens": [
+"fox",
+"нет",
+"the",
+"quick",
+"jumps",
+"lazy",
+"dog",
+"fox",
+"the",
+"the",
+"brown",
+"jumps",
+"over",
+"кот",
+"пёс"
+],
+"key": "h:fc6a21663660f6f731b4122c989b7b70054c01a2",
+"keys": [
+"h:6f4a084a18d62928231dd25602fa09e5a061787f",
+"h:999542116c5ded5ca0423b2695658a2c0f7c4544",
+"h:48a38ffa4fdb818751add5870950aaed90ca4c1c"
+],
+"ordered": [
+"fox",
+"нет",
+"the",
+"quick",
+"jumps",
+"lazy",
+"dog",
+"fox",
+"the",
+"the",
+"brown",
+"jumps",
+"over",
+"кот",
+"пёс"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"jumps",
+"lazy",
+"over",
+"quick",
+"the",
+"кот",
+"нет",
+"пёс"
+],
+"card": 44.0
+},
+{
+"tokens": [
+"quick",
+"over",
+"brown"
+],
+"key": "h:688700e537931954361222d4ad023633f78d178e",
+"keys": [
+"h:d0eaba6d5fd0de5dab217f3bffc4030f59fa8690",
+"h:296dea5d9de2e814565af2d9a6f5bc419ae0131b",
+"h:7aa43e6876fc560b0d9549d1c90eb320144e1b6e"
+],
+"ordered": [
+"quick",
+"over",
+"brown"
+],
+"no_order": [
+"brown",
+"over",
+"quick"
+],
+"card": 13.0
+},
+{
+"tokens": [
+"dog",
+"over",
+"да",
+"нет",
+"нет",
+"кот",
+"пёс",
+"brown",
+"пёс",
+"the",
+"the",
+"dog",
+"over",
+"нет",
+"jumps"
+],
+"key": "h:a6b53662df284b60dea1881fe8d2f2b89d4807e9",
+"keys": [
+"h:a0c38bc9e2efa45391a90fb9e326cbe8e010e124",
+"h:830af7fcfc1cdc393bdd8f13408f7326e43aff66",
+"h:6cf7f4a045764bd0501a0c398b195697a27b9c90"
+],
+"ordered": [
+"dog",
+"over",
+"да",
+"нет",
+"нет",
+"кот",
+"пёс",
+"brown",
+"пёс",
+"the",
+"the",
+"dog",
+"over",
+"нет",
+"jumps"
+],
+"no_order": [
+"brown",
+"dog",
+"jumps",
+"over",
+"the",
+"да",
+"кот",
+"нет",
+"пёс"
+],
+"card": 42.0
+},
+{
+"tokens": [
+"the"
+],
+"key": "h:5569f452fb33dffb3e90fc4861040f89dfff19e8",
+"keys": [
+"h:b407155982bccf2d8ec42cb5bade57a8af11b9ab",
+"h:11029b2a2f80f6102657724a51929d139a55cb59",
+"h:e3fafa485ac87d5c24d4f3eb72f34a73c4e04cd5"
+],
+"ordered": [
+"the"
+],
+"no_order": [
+"the"
+],
+"card": 7.0
+},
+{
+"tokens": [
+"да",
+"quick",
+"dog",
+"quick",
+"нет",
+"jumps",
+"over",
+"brown",
+"quick",
+"quick"
+],
+"key": "h:828476984e418efa43d028a79f8ce706d86f3666",
+"keys": [
+"h:4f8480bbc41966e8b83f425b2db60546168ed43d",
+"h:a8eacabd0dca5dea46e75be89481f475f10dae36",
+"h:a8512a383082401758984348268eec38051ea54d"
+],
+"ordered": [
+"да",
+"quick",
+"dog",
+"quick",
+"нет",
+"jumps",
+"over",
+"brown",
+"quick",
+"quick"
+],
+"no_order": [
+"brown",
+"dog",
+"jumps",
+"over",
+"quick",
+"да",
+"нет"
+],
+"card": 31.0
+},
+{
+"tokens": [
+"кот",
+"over",
+"нет",
+"the",
+"нет",
+"нет",
+"нет",
+"brown"
+],
+"key": "h:7ed269641edc816877dc298f5595a5ece2ddaa09",
+"keys": [
+"h:f839d0e731ec5e37972c5f4caef82d699b975acf",
+"h:07265ca582cba4fd245553955b5bf95f171d7117",
+"h:293a3cf0029f71ec074468224d9189a07ae4669f"
+],
+"ordered": [
+"кот",
+"over",
+"нет",
+"the",
+"нет",
+"нет",
+"нет",
+"brown"
+],
+"no_order": [
+"brown",
+"over",
+"the",
+"кот",
+"нет"
+],
+"card": 24.0
+},
+{
+"tokens": [
+"over",
+"over",
+"quick",
+"да",
+"dog",
+"quick",
+"日本",
+"日本",
+"lazy",
+"ha",
+"the",
+"日本",
+"dog"
+],
+"key": "h:05a0775dc5151f7ab30f31bc507659a3b0635afe",
+"keys": [
+"h:f105ebbe9cff4d789c9d37c094c4d747e2051adf",
+"h:227d55faa0600b15d191a82ad83a08a6113f8ca5",
+"h:3591ba3c95da296ec37077687378280f6e9efc38"
+],
+"ordered": [
+"over",
+"over",
+"quick",
+"да",
+"dog",
+"quick",
+"日本",
+"日本",
+"lazy",
+"ha",
+"the",
+"日本",
+"dog"
+],
+"no_order": [
+"dog",
+"ha",
+"lazy",
+"over",
+"quick",
+"the",
+"да",
+"日本"
+],
+"card": 38.0
+},
+{
+"tokens": [
+"the",
+"пёс",
+"да",
+"lazy",
+"lazy",
+"пёс",
+"the",
+"пёс",
+"quick",
+"quick"
+],
+"key": "h:e935224e4c195de37c54aae20bf0ff2d0331438e",
+"keys": [
+"h:9aaecf9b74b086ac3dc2441f1473a766e668b1ec",
+"h:9c4418db5dae7cf4001887910a3339b5ab129e94",
+"h:6ec9f46d79e7c3b8170321268421e1b6e5483494"
+],
+"ordered": [
+"the",
+"пёс",
+"да",
+"lazy",
+"lazy",
+"пёс",
+"the",
+"пёс",
+"quick",
+"quick"
+],
+"no_order": [
+"lazy",
+"quick",
+"the",
+"да",
+"пёс"
+],
+"card": 28.0
+},
+{
+"tokens": [
+"да",
+"quick"
+],
+"key": "h:76aeadf7f9a5ec4804e0bca3088b3ce48be15c27",
+"keys": [
+"h:c58bcd22804a73ffe46fde6b5386a100599cc6f4",
+"h:43fc30782289c0a343ada31b27718da05b52e316",
+"h:68a8ffb451f81198934a9c3aa346ffe486f8050b"
+],
+"ordered": [
+"да",
+"quick"
+],
+"no_order": [
+"quick",
+"да"
+],
+"card": 10.0
+},
+{
+"tokens": [
+"lazy",
+"нет",
+"over",
+"lazy",
+"нет"
+],
+"key": "h:9b61c33876da9bc3664bb4bd58dcd2e6fd2105c6",
+"keys": [
+"h:3817ebf7783de9ccb5e83c12195ee64d74f39272",
+"h:f8bb85e89eb6ff7890d7aada58857b264006fb57",
+"h:3d8d06567bc43ab22d3d4140444ec232a8d234b2"
+],
+"ordered": [
+"lazy",
+"нет",
+"over",
+"lazy",
+"нет"
+],
+"no_order": [
+"lazy",
+"over",
+"нет"
+],
+"card": 16.0
+},
+{
+"tokens": [
+"пёс",
+"dog",
+"dog",
+"dog",
+"日本",
+"кот",
+"quick",
+"кот",
+"ha",
+"кот",
+"the",
+"jumps"
+],
+"key": "h:e94d614236c20712f4f0a4daca3545a23fe7a229",
+"keys": [
+"h:b6c4ce9adea1e4803af479da3b01744c9314e0ae",
+"h:d3f997922b5f997d0cd3e03e9e16beae696d2fb5",
+"h:007e681006dfdde0cde9ec8a7651940db4f23b40"
+],
+"ordered": [
+"пёс",
+"dog",
+"dog",
+"dog",
+"日本",
+"кот",
+"quick",
+"кот",
+"ha",
+"кот",
+"the",
+"jumps"
+],
+"no_order": [
+"dog",
+"ha",
+"jumps",
+"quick",
+"the",
+"кот",
+"пёс",
+"日本"
+],
+"card": 35.0
+},
+{
+"tokens": [
+"quick",
+"dog",
+"the",
+"fox",
+"нет",
+"quick",
+"dog",
+"ha",
+"пёс",
+"да"
+],
+"key": "h:9bf9be9a98c2588b546465155822af104ad0c563",
+"keys": [
+"h:ff00f44f8d300564abfa7477c3579e2e850f9310",
+"h:39877f3c9a913cf6fe23bd866fdb99ebfab0a63e",
+"h:336eb7cb84fefff8948c4c5f1b9aaf6ac9255292"
+],
+"ordered": [
+"quick",
+"dog",
+"the",
+"fox",
+"нет",
+"quick",
+"dog",
+"ha",
+"пёс",
+"да"
+],
+"no_order": [
+"dog",
+"fox",
+"ha",
+"quick",
+"the",
+"да",
+"нет",
+"пёс"
+],
+"card": 31.0
+},
+{
+"tokens": [
+"dog",
+"jumps",
+"the",
+"over",
+"jumps",
+"brown",
+"да",
+"пёс",
+"fox",
+"кот",
+"brown",
+"ha",
+"over",
+"да",
+"dog"
+],
+"key": "h:9a6100e311a35e8996e6c20b2f9bcabe34572fa4",
+"keys": [
+"h:5024251c8bcbcaaa77939f462a7b7af72867bae1",
+"h:1594f09e06ecb3883c75d275b204eccd7805b3e6",
+"h:a142e4d67666acefa737319625d8388ac743b20a"
+],
+"ordered": [
+"dog",
+"jumps",
+"the",
+"over",
+"jumps",
+"brown",
+"да",
+"пёс",
+"fox",
+"кот",
+"brown",
+"ha",
+"over",
+"да",
+"dog"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"ha",
+"jumps",
+"over",
+"the",
+"да",
+"кот",
+"пёс"
+],
+"card": 44.0
+},
+{
+"tokens": [
+"fox",
+"over",
+"lazy",
+"да",
+"jumps",
+"fox",
+"да",
+"lazy"
+],
+"key": "h:ad0b8775260a064cdbf890ca54a3ca8fdcb459c7",
+"keys": [
+"h:ce8f578bfe0a374e9e1d32301d28bba27d3af58a",
+"h:553ef01028ee1cd2532d92c4d3cb31c2221e2ed7",
+"h:6474852f6f0cf7c0736079777f557ec73b6310df"
+],
+"ordered": [
+"fox",
+"over",
+"lazy",
+"да",
+"jumps",
+"fox",
+"да",
+"lazy"
+],
+"no_order": [
+"fox",
+"jumps",
+"lazy",
+"over",
+"да"
+],
+"card": 23.0
+},
+{
+"tokens": [
+"ha",
+"ha",
+"fox",
+"fox",
+"lazy",
+"fox",
+"пёс",
+"over",
+"fox",
+"brown",
+"brown",
+"dog",
+"over"
+],
+"key": "h:4468307e9527802aa1604e104e33df5155cbf402",
+"keys": [
+"h:fca89313a60b0c1fa751675ce32ba127f741d946",
+"h:6bb278b4499cd0599181605dfe1fbc853778d3d4",
+"h:4dc15baa30849ec3835fa005b075148a49ed359c"
+],
+"ordered": [
+"ha",
+"ha",
+"fox",
+"fox",
+"lazy",
+"fox",
+"пёс",
+"over",
+"fox",
+"brown",
+"brown",
+"dog",
+"over"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"ha",
+"lazy",
+"over",
+"пёс"
+],
+"card": 37.0
+},
+{
+"tokens": [
+"日本",
+"the",
+"нет",
+"quick",
+"jumps",
+"日本",
+"brown",
+"quick",
+"dog",
+"dog",
+"jumps",
+"fox",
+"日本",
+"lazy"
+],
+"key": "h:a538cbaf2a6780e09299fbaaafdedce03bab0ec8",
+"keys": [
+"h:61c738afc0f49de5c2921041b56f7ef7293d29e1",
+"h:aa56ef8373fd5c73faa08be106069a7f73174744",
+"h:8169a6601bbb2e3e6f179a9cf1bdb8d14c363150"
+],
+"ordered": [
+"日本",
+"the",
+"нет",
+"quick",
+"jumps",
+"日本",
+"brown",
+"quick",
+"dog",
+"dog",
+"jumps",
+"fox",
+"日本",
+"lazy"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"jumps",
+"lazy",
+"quick",
+"the",
+"нет",
+"日本"
+],
+"card": 40.0
+},
+{
+"tokens": [
+"да",
+"кот",
+"dog",
+"да",
+"over",
+"нет",
+"日本"
+],
+"key": "h:dc77fb17da649b3538a9c015321eeb8efe911db4",
+"keys": [
+"h:07799d9dd2ab48053151a348a9f7a4c7b26e30ef",
+"h:f2992e6eba8be8fc41ed8be0ed97327a4433bf4b",
+"h:d47c436da6fc88b069ea3df241683992c72851c9"
+],
+"ordered": [
+"да",
+"кот",
+"dog",
+"да",
+"over",
+"нет",
+"日本"
+],
+"no_order": [
+"dog",
+"over",
+"да",
+"кот",
+"нет",
+"日本"
+],
+"card": 24.0
+},
+{
+"tokens": [
+"пёс",
+"dog",
+"over",
+"quick",
+"日本",
+"the",
+"jumps",
+"日本",
+"пёс",
+"the",
+"да",
+"нет",
+"jumps",
+"пёс"
+],
+"key": "h:4edf6729b59caca1b392f92b57c2b20953ad37d1",
+"keys": [
+"h:e399f4bff37680e22fd3b4779837915909987583",
+"h:b8b75238db65b54534903c643c0a0a887ef488ce",
+"h:53840985383f48272b3008301be9435edebd28d7"
+],
+"ordered": [
+"пёс",
+"dog",
+"over",
+"quick",
+"日本",
+"the",
+"jumps",
+"日本",
+"пёс",
+"the",
+"да",
+"нет",
+"jumps",
+"пёс"
+],
+"no_order": [
+"dog",
+"jumps",
+"over",
+"quick",
+"the",
+"да",
+"нет",
+"пёс",
+"日本"
+],
+"card": 41.0
+},
+{
+"tokens": [
+"jumps",
+"да",
+"ha",
+"пёс",
+"the",
+"да"
+],
+"key": "h:d52ed9d110a654bf7ac953404ef5e9819e2afec9",
+"keys": [
+"h:245c05f0cc19e1eece49d391b8731381a3cc5be5",
+"h:a44f92499ee2a773b035496df70f42103fea714b",
+"h:e16bbd8bfd5e6bfdf4a43e0c7b94cbdcc2ce64ac"
+],
+"ordered": [
+"jumps",
+"да",
+"ha",
+"пёс",
+"the",
+"да"
+],
+"no_order": [
+"ha",
+"jumps",
+"the",
+"да",
+"пёс"
+],
+"card": 21.0
+},
+{
+"tokens": [
+"lazy",
+"dog",
+"fox"
+],
+"key": "h:7a72f38bac5b2963fdb6e77881cdab0d2a83f90c",
+"keys": [
+"h:9e20873fa4a910e98a8fcaf2408dfbb98e79d3c6",
+"h:c463dcea07729027093a8640c192316973f7638f",
+"h:fed35aeda60831448ff9e6c3ef6f2136c60b8b1c"
+],
+"ordered": [
+"lazy",
+"dog",
+"fox"
+],
+"no_order": [
+"dog",
+"fox",
+"lazy"
+],
+"card": 13.0
+},
+{
+"tokens": [
+"ha"
+],
+"key": "h:dc0054631353ffecd231efe1c558e5b01e637719",
+"keys": [
+"h:fff9f8b33f8cebcc8537cc330051d1cdfe4762de",
+"h:12b1d9542a19db23a1014e37abde90dc17013c24",
+"h:2cebc3d5783e2619f1daebd1855f443a3bdcb123"
+],
+"ordered": [
+"ha"
+],
+"no_order": [
+"ha"
+],
+"card": 7.0
+},
+{
+"tokens": [
+"jumps",
+"fox",
+"ha",
+"brown",
+"ha",
+"the",
+"да",
+"quick",
+"dog",
+"quick",
+"да",
+"кот",
+"да",
+"да"
+],
+"key": "h:c939c13978e8b6ca311234c8bda1593f98f69377",
+"keys": [
+"h:ac60fc9942b2f3f488f75bdbc4f8dc6f2d717ac3",
+"h:6853ea6485f59432f3adf3f82b72bff723a2f973",
+"h:2129612f835efb2dca698a8b09bfdc0b951825cc"
+],
+"ordered": [
+"jumps",
+"fox",
+"ha",
+"brown",
+"ha",
+"the",
+"да",
+"quick",
+"dog",
+"quick",
+"да",
+"кот",
+"да",
+"да"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"ha",
+"jumps",
+"quick",
+"the",
+"да",
+"кот"
+],
+"card": 40.0
+},
+{
+"tokens": [
+"over",
+"quick",
+"да",
+"fox",
+"fox",
+"日本",
+"dog",
+"jumps",
+"brown",
+"нет",
+"the",
+"ha",
+"dog"
+],
+"key": "h:65ad25492473bd58c0cde4e474f16fd2640e4c8b",
+"keys": [
+"h:255b0cda1bc09652a34c0a906d2e6c70ca72e976",
+"h:bfe03896425d00db60ca3a58e4c67482a03c4b7e",
+"h:0cc2f70d365e4514d502963b8cf6d35cdb6e730e"
+],
+"ordered": [
+"over",
+"quick",
+"да",
+"fox",
+"fox",
+"日本",
+"dog",
+"jumps",
+"brown",
+"нет",
+"the",
+"ha",
+"dog"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"ha",
+"jumps",
+"over",
+"quick",
+"the",
+"да",
+"нет",
+"日本"
+],
+"card": 41.0
+},
+{
+"tokens": [
+"нет",
+"the",
+"brown",
+"fox",
+"jumps",
+"ha",
+"over",
+"кот",
+"нет"
+],
+"key": "h:b1113156e6756f4a53fe66168835bf3f276e72a1",
+"keys": [
+"h:b004b6b1c6900dab5a6cb1c283bf8854884b8dda",
+"h:6833b768443bd7d7ac1cd104da33508dd47499d8",
+"h:1edb7d7aeff3b5ead9b657a841dd8a5aa6dcd986"
+],
+"ordered": [
+"нет",
+"the",
+"brown",
+"fox",
+"jumps",
+"ha",
+"over",
+"кот",
+"нет"
+],
+"no_order": [
+"brown",
+"fox",
+"ha",
+"jumps",
+"over",
+"the",
+"кот",
+"нет"
+],
+"card": 30.0
+},
+{
+"tokens": [
+"кот",
+"пёс",
+"ha",
+"brown",
+"lazy",
+"日本",
+"ha",
+"нет",
+"fox"
+],
+"key": "h:1a54aadced9d3d68991fbdc086edf95ef06905dc",
+"keys": [
+"h:c61762a751a7c160a09837eb4285f7c664a37584",
+"h:07c07ab83f567bbd4c8dfee94c752f9033560561",
+"h:5a845f7b8b1d13f20cafe2f178b960a8c12f1f12"
+],
+"ordered": [
+"кот",
+"пёс",
+"ha",
+"brown",
+"lazy",
+"日本",
+"ha",
+"нет",
+"fox"
+],
+"no_order": [
+"brown",
+"fox",
+"ha",
+"lazy",
+"кот",
+"нет",
+"пёс",
+"日本"
+],
+"card": 30.0
+},
+{
+"tokens": [
+"lazy",
+"нет"
+],
+"key": "h:3c8a038df44214348cc42f48df440c8e9180864a",
+"keys": [
+"h:36c7b0f00b96a41da2970e7aedc87ce1c0262df7",
+"h:504777223b511828621111af0387efc655c1d0be",
+"h:2dd12a1c79df17a90130cb1c875c09cfabac6833"
+],
+"ordered": [
+"lazy",
+"нет"
+],
+"no_order": [
+"lazy",
+"нет"
+],
+"card": 10.0
+},
+{
+"tokens": [
+"brown",
+"dog",
+"dog",
+"fox",
+"да",
+"the",
+"lazy"
+],
+"key": "h:8570ed0b632fbd7f012aab1d9c7b238a60123dc9",
+"keys": [
+"h:8861fab5888f6a5c3c7d5cf7158eda79d0a3a597",
+"h:8d831c6129c3f800a196300dae0f473611de0393",
+"h:c3f92f0336d2959955eb0e43838e20e61a9aed06"
+],
+"ordered": [
+"brown",
+"dog",
+"dog",
+"fox",
+"да",
+"the",
+"lazy"
+],
+"no_order": [
+"brown",
+"dog",
+"fox",
+"lazy",
+"the",
+"да"
+],
+"card": 24.0
+},
+{
+"tokens": [
+"пёс",
+"да",
+"кот",
+"ha",
+"日本",
+"over",
+"dog",
+"over",
+"да"
+],
+"key": "h:86cbc4edc02d4b4cf43d661315ec6f078654952a",
+"keys": [
+"h:24a4748895789f6525516da62e54452726c4f4f0",
+"h:281505f9b2788961446033a94d2020d0b57c8b30",
+"h:ad7e5fd2c79d8ed83aed3c5f942f7658c0c637cd"
+],
+"ordered": [
+"пёс",
+"да",
+"кот",
+"ha",
+"日本",
+"over",
+"dog",
+"over",
+"да"
+],
+"no_order": [
+"dog",
+"ha",
+"over",
+"да",
+"кот",
+"пёс",
+"日本"
+],
+"card": 29.0
+},
+{
+"tokens": [
+"quick",
+"нет",
+"日本",
+"日本"
+],
+"key": "h:518b1fa4a82c07be6a27c3993fdb059c2150c9fd",
+"keys": [
+"h:c0074bba251e12352bb0ead227df9aeb91a1e0cc",
+"h:b50901c649652bb3edd15ff9dbc083971abeb289",
+"h:b0477dc6ccc2d7c6830ce728d201f14bdf00da23"
+],
+"ordered": [
+"quick",
+"нет",
+"日本",
+"日本"
+],
+"no_order": [
+"quick",
+"нет",
+"日本"
+],
+"card": 14.0
+},
+{
+"tokens": [
+"да",
+"нет",
+"quick",
+"fox",
+"fox",
+"lazy",
+"quick",
+"jumps",
+"кот",
+"ha",
+"over",
+"jumps",
+"нет"
+],
+"key": "h:6bc3e035508d026b925b6db3a956856270c2f926",
+"keys": [
+"h:8b93bde7fc921ef0f489c2765fba16474f5106a0",
+"h:9f2f1ffb34bad0709d55e80b280a0d440418b23c",
+"h:db12bcb383a87fd94522e6cc65523451108d8d8b"
+],
+"ordered": [
+"да",
+"нет",
+"quick",
+"fox",
+"fox",
+"lazy",
+"quick",
+"jumps",
+"кот",
+"ha",
+"over",
+"jumps",
+"нет"
+],
+"no_order": [
+"fox",
+"ha",
+"jumps",
+"lazy",
+"over",
+"quick",
+"да",
+"кот",
+"нет"
+],
+"card": 39.0
+},
+{
+"tokens": [
+"the",
+"over",
+"кот",
+"quick",
+"the",
+"dog",
+"over",
+"кот",
+"lazy",
+"ha",
+"jumps",
+"dog",
+"the",
+"fox"
+],
+"key": "h:e9595fde0065ffd145892edc75969f51a5cb819e",
+"keys": [
+"h:f41d8b377feedcc5daccbc0fe153932ab176e622",
+"h:e2afaf0e50f2395f56a03977a2df76404c2c78a1",
+"h:da8efd1c976d3cdcaab94f29472b8d8ccee6ab91"
+],
+"ordered": [
+"the",
+"over",
+"кот",
+"quick",
+"the",
+"dog",
+"over",
+"кот",
+"lazy",
+"ha",
+"jumps",
+"dog",
+"the",
+"fox"
+],
+"no_order": [
+"dog",
+"fox",
+"ha",
+"jumps",
+"lazy",
+"over",
+"quick",
+"the",
+"кот"
+],
+"card": 39.0
+},
+{
+"tokens": [
+"日本",
+"quick",
+"lazy",
+"ha",
+"the",
+"brown",
+"кот",
+"over",
+"да",
+"ha",
+"brown",
+"dog",
+"brown"
+],
+"key": "h:bcf17573608750777935b4f8dd9d90729a9ac6ab",
+"keys": [
+"h:a2547704636ded0e0a2f7cad58306c91b682929e",
+"h:54a6eceddbda012e3bfa3cda737e5b21a12bacdf",
+"h:53ba074cfb20c4a0f15525aae409cb9c66a85551"
+],
+"ordered": [
+"日本",
+"quick",
+"lazy",
+"ha",
+"the",
+"brown",
+"кот",
+"over",
+"да",
+"ha",
+"brown",
+"dog",
+"brown"
+],
+"no_order": [
+"brown",
+"dog",
+"ha",
+"lazy",
+"over",
+"quick",
+"the",
+"да",
+"кот",
+"日本"
+],
+"card": 39.0
+},
+{
+"tokens": [
+"нет",
+"кот",
+"日本",
+"да",
+"нет",
+"dog",
+"dog",
+"пёс",
+"нет"
+],
+"key": "h:58fba71e56f8e2476fed8a8c90de8b4747711936",
+"keys": [
+"h:ee7f61521e7e09567aaece220f9e8e444487d178",
+"h:0889885f882f3b453586ff2627b183a3cae53a3f",
+"h:dc807a4ddddae7403e814095641f2d3dded20c3b"
+],
+"ordered": [
+"нет",
+"кот",
+"日本",
+"да",
+"нет",
+"dog",
+"dog",
+"пёс",
+"нет"
+],
+"no_order": [
+"dog",
+"да",
+"кот",
+"нет",
+"пёс",
+"日本"
+],
+"card": 28.0
+},
+{
+"tokens": [
+"ha",
+"fox"
+],
+"key": "h:660b48e1c28674ab43c3224da86a104556b3a4a4",
+"keys": [
+"h:9a00ef7bb01bc1037097f25c0512060b548bff4c",
+"h:99c54c6ab840e675c05b9cbdc7376dbf5fc33cef",
+"h:17c5f3256e8474c9fc6a13e221622b7cf0f3f35f"
+],
+"ordered": [
+"ha",
+"fox"
+],
+"no_order": [
+"fox",
+"ha"
+],
+"card": 10.0
+},
+{
+"tokens": [
+"кот",
+"кот",
+"jumps",
+"日本",
+"нет",
+"кот",
+"да",
+"brown"
+],
+"key": "h:8af1055309fe86448e5c83cf7a45d41cea832eb4",
+"keys": [
+"h:32d8352b135562acc573d3aecb49609bc4048564",
+"h:d8260bfff43c7e0531fd31d8ceaa39801586396c",
+"h:0a9e5f3589c52bf3eda53b6fb66a418434b7e733"
+],
+"ordered": [
+"кот",
+"кот",
+"jumps",
+"日本",
+"нет",
+"кот",
+"да",
+"brown"
+],
+"no_order": [
+"brown",
+"jumps",
+"да",
+"кот",
+"нет",
+"日本"
+],
+"card": 26.0
+}
+]
